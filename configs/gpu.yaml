@@ -1,0 +1,27 @@
+log_level: INFO
+
+model:
+  model_path:     models/model_scripted.pt
+  patch_size:     512
+  target_mpp:     0.88
+  input_channels: 3
+  device:         cuda:0
+  batch_size:     32
+  threshold:      0.5
+
+tiling:
+  num_workers:      8
+  prefetch_factor:  4
+  overlap:          256
+  tissue_threshold: 0.05
+  background_value: 230
+  black_value:      10
+
+output:
+  output_dir:       outputs
+  output_format:    tiff
+  compression:      lzw
+  save_thumbnail:   true
+  save_overlay:     true
+  overlay_alpha:    0.40
+  overlay_max_edge: 4096

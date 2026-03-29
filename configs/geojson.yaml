@@ -1,0 +1,22 @@
+log_level: INFO
+
+model:
+  model_path: models/model_scripted.pt
+  patch_size: 512
+  target_mpp: 0.88
+  device: cpu
+  batch_size: 8
+  threshold: 0.5
+
+tiling:
+  num_workers: 4
+  prefetch_factor: 2
+  overlap: 256
+  tissue_threshold: 0.05
+  background_value: 230
+  black_value: 10
+  
+output:
+  output_dir: outputs
+  output_format: geojson
+  save_overlay: false

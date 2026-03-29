@@ -1,0 +1,27 @@
+"""HistoCoreML foundation models — patch encoders for feature extraction.
+
+Supported encoders
+------------------
+``UNIEncoder``     — UNI (universal pathology encoder from MedIBL / HMS)
+``CONCHEncoder``   — CONCH (contrastive language-image pretraining, AIMIL)
+``PLIPEncoder``    — PLIP (pathology language-image pretraining, Zhu et al.)
+``ViTEncoder``     — Generic ViT encoder via timm (custom weights)
+
+Usage::
+
+    from histocoreml.foundation import get_encoder, EmbeddingPipeline
+    from histocoreml.config import FoundationConfig
+    from pathlib import Path
+
+    cfg      = FoundationConfig(model_name="uni", target_mpp=0.5, batch_size=64)
+    encoder  = get_encoder(cfg)
+    pipeline = EmbeddingPipeline(cfg, encoder)
+    results  = pipeline.run([Path("slide.svs")], output_dir=Path("embeddings"))
+"""
+
+from histocoreml.foundation.base_encoder import BaseEncoder
+from histocoreml.foundation.vit_encoder import ViTEncoder
+from histocoreml.foundation.factory import get_encoder
+from histocoreml.foundation.embedding_pipeline import EmbeddingPipeline
+
+__all__ = ["BaseEncoder", "ViTEncoder", "get_encoder", "EmbeddingPipeline"]
