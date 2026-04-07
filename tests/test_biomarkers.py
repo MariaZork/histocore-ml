@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from histocoreml.biomarkers.nuclei import detect_nuclei, measure_nuclei_morphology
 from histocoreml.biomarkers.spatial import build_spatial_graph, compute_graph_features
 from histocoreml.biomarkers.stain import (
     compute_ki67_index,
-    separate_he_channels,
     separate_hdab_channels,
+    separate_he_channels,
 )
 from tests.conftest import make_rgb_patch
 

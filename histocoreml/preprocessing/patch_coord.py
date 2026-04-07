@@ -34,6 +34,6 @@ class PatchCoord:
     """Optional identifier for the source slide (useful in multi-slide batches)."""
 
     @property
-    def grid_position(self):
+    def grid_position(self) -> tuple[int, int]:
         """(row_idx, col_idx) tuple."""
         return (self.row_idx, self.col_idx)

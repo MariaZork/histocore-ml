@@ -4,13 +4,11 @@ from __future__ import annotations
 
 import logging
 import time
-from pathlib import Path
-from typing import Dict, List, Optional
 
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.optim import AdamW, SGD
+from torch.optim import SGD, AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader
 
@@ -38,20 +36,26 @@ class SegmentationTrainer:
         trainer.fit(train_loader, val_loader)
     """
 
-    def __init__(self, cfg: TrainingConfig, model: Optional[nn.Module] = None) -> None:
+    def __init__(self, cfg: TrainingConfig, model: nn.Module | None = None) -> None:
         self._cfg = cfg
         self._model = model or self._build_model()
         self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self._model = self._model.to(self._device)
         self._criterion = get_loss(cfg.loss)
         self._optimizer = self._build_optimizer()
-        self._scheduler = CosineAnnealingLR(self._optimizer, T_max=cfg.epochs, eta_min=1e-6)
-        self._scaler = torch.cuda.amp.GradScaler(enabled=cfg.mixed_precision and self._device.type == "cuda")
+        self._scheduler = CosineAnnealingLR(
+            self._optimizer,
+            T_max=cfg.epochs,
+            eta_min=1e-6,
+        )
+        self._scaler = torch.cuda.amp.GradScaler(
+            enabled=(cfg.mixed_precision and self._device.type == "cuda")
+        )
         self._best_dice: float = 0.0
         self._no_improve: int = 0
         cfg.checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
-    def fit(self, train_loader: DataLoader, val_loader: DataLoader) -> Dict:
+    def fit(self, train_loader: DataLoader, val_loader: DataLoader) -> dict:
         """Run the training loop.
 
         Args:
@@ -61,7 +65,7 @@ class SegmentationTrainer:
         Returns:
             Dict with training history (train_loss, val_dice per epoch).
         """
-        history: Dict[str, List[float]] = {"train_loss": [], "val_dice": [], "val_iou": []}
+        history: dict[str, list[float]] = {"train_loss": [], "val_dice": [], "val_iou": []}
 
         for epoch in range(1, self._cfg.epochs + 1):
             t0 = time.perf_counter()
@@ -102,9 +106,11 @@ class SegmentationTrainer:
             images = batch["image"].to(self._device)
             masks  = batch["mask"].to(self._device)
             self._optimizer.zero_grad(set_to_none=True)
-            with torch.cuda.amp.autocast(enabled=self._cfg.mixed_precision and self._device.type == "cuda"):
+            with torch.cuda.amp.autocast(
+                enabled=(self._cfg.mixed_precision and self._device.type == "cuda")
+            ):
                 preds = self._model(images)
-                loss  = self._criterion(preds.squeeze(1), masks.squeeze(1))
+                loss = self._criterion(preds.squeeze(1), masks.squeeze(1))
             self._scaler.scale(loss).backward()
             self._scaler.step(self._optimizer)
             self._scaler.update()
@@ -112,7 +118,7 @@ class SegmentationTrainer:
         return total_loss / max(len(loader), 1)
 
     @torch.inference_mode()
-    def _val_epoch(self, loader: DataLoader):
+    def _val_epoch(self, loader: DataLoader) -> tuple[float, float]:
         self._model.eval()
         dices, ious = [], []
         for batch in loader:
@@ -159,9 +165,16 @@ class SegmentationTrainer:
             classes=1,
         )
 
-    def _build_optimizer(self):
+    def _build_optimizer(self) -> torch.optim.Optimizer:
         if self._cfg.optimizer.lower() == "sgd":
-            return SGD(self._model.parameters(), lr=self._cfg.learning_rate,
-                       momentum=0.9, weight_decay=self._cfg.weight_decay)
-        return AdamW(self._model.parameters(), lr=self._cfg.learning_rate,
-                     weight_decay=self._cfg.weight_decay)
+            return SGD(
+                self._model.parameters(),
+                lr=self._cfg.learning_rate,
+                momentum=0.9,
+                weight_decay=self._cfg.weight_decay,
+            )
+        return AdamW(
+            self._model.parameters(),
+            lr=self._cfg.learning_rate,
+            weight_decay=self._cfg.weight_decay,
+        )

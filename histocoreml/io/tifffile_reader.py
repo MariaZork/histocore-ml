@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional, Tuple
 
 import numpy as np
 
@@ -35,7 +34,7 @@ class TifffileReader(BaseWSIReader):
         self._tif = None
         self._series = None
 
-    def open(self) -> "TifffileReader":
+    def open(self) -> TifffileReader:
         try:
             import tifffile  # noqa: PLC0415
         except ImportError as exc:
@@ -82,9 +81,9 @@ class TifffileReader(BaseWSIReader):
 
     def read_region(
         self,
-        location: Tuple[int, int],
+        location: tuple[int, int],
         level: int,
-        size: Tuple[int, int],
+        size: tuple[int, int],
     ) -> np.ndarray:
         self._ensure_open()
         lv = self._series.levels[level]
@@ -98,7 +97,7 @@ class TifffileReader(BaseWSIReader):
             region = region[:, :, :3]
         return region.astype(np.uint8)
 
-    def get_thumbnail(self, max_size: Tuple[int, int] = (1024, 1024)) -> np.ndarray:
+    def get_thumbnail(self, max_size: tuple[int, int] = (1024, 1024)) -> np.ndarray:
         self._ensure_open()
         meta = self.get_metadata()
         # Use the coarsest level as thumbnail
@@ -121,7 +120,7 @@ class TifffileReader(BaseWSIReader):
                 "Reader is not open. Use it as a context manager or call open() first."
             )
 
-    def _extract_mpp(self) -> Tuple[Optional[float], Optional[float]]:
+    def _extract_mpp(self) -> tuple[float | None, float | None]:
         """Try to extract MPP from OME-XML or TIFF resolution tags."""
         try:
             if self._tif.ome_metadata:
@@ -135,7 +134,7 @@ class TifffileReader(BaseWSIReader):
                     unit = px.get("PhysicalSizeXUnit", "µm")
                     if unit in ("µm", "um", "micrometer"):
                         return sx or None, sy or None
-        except Exception:
+        except (AttributeError, ValueError, TypeError):
             pass
 
         # Fall back to TIFF resolution tags
@@ -155,7 +154,7 @@ class TifffileReader(BaseWSIReader):
                     return 1e4 / xr, 1e4 / yr
                 if unit_val == 2:  # inches
                     return 25400 / xr, 25400 / yr
-        except Exception:
+        except (AttributeError, ValueError, TypeError, ZeroDivisionError):
             pass
 
         return None, None

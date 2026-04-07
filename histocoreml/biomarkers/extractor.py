@@ -7,15 +7,15 @@ import logging
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
-from histocoreml.config import BiomarkerConfig
-from histocoreml.io.factory import get_reader
 from histocoreml.biomarkers.nuclei import detect_nuclei, measure_nuclei_morphology
 from histocoreml.biomarkers.spatial import build_spatial_graph, compute_graph_features
 from histocoreml.biomarkers.stain import compute_ki67_index
+from histocoreml.config import BiomarkerConfig
+from histocoreml.io.factory import get_reader
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +25,8 @@ class BiomarkerReport:
     """Aggregated biomarker report for a single WSI."""
 
     wsi_path: Path
-    features: Dict[str, Any] = field(default_factory=dict)
-    errors: List[str]        = field(default_factory=list)
+    features: dict[str, Any] = field(default_factory=dict)
+    errors: list[str]        = field(default_factory=list)
     elapsed_seconds: float   = 0.0
 
     @property
@@ -46,7 +46,7 @@ class BiomarkerReport:
             json.dump(payload, fh, indent=2, default=str)
         logger.info("Biomarker report saved → %s", path)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "wsi_path": str(self.wsi_path),
             **self.features,
@@ -77,8 +77,8 @@ class BiomarkerExtractor:
     def run(
         self,
         wsi_path: Path,
-        mask: Optional[np.ndarray] = None,
-        patch: Optional[np.ndarray] = None,
+        mask: np.ndarray | None = None,
+        patch: np.ndarray | None = None,
     ) -> BiomarkerReport:
         """Extract biomarkers from a WSI.
 
@@ -93,8 +93,8 @@ class BiomarkerExtractor:
             :class:`BiomarkerReport` with all requested features.
         """
         t0 = time.perf_counter()
-        features: Dict[str, Any] = {}
-        errors: List[str] = []
+        features: dict[str, Any] = {}
+        errors: list[str] = []
 
         # Get a representative patch for cellular analysis
         if patch is None:
@@ -103,7 +103,7 @@ class BiomarkerExtractor:
                     patch = reader.get_thumbnail(max_size=(2048, 2048))
                     meta  = reader.get_metadata()
                     mpp   = meta.mpp or 1.0
-            except Exception as exc:
+            except (OSError, ValueError, RuntimeError, ImportError) as exc:
                 errors.append(f"Slide read failed: {exc}")
                 return BiomarkerReport(wsi_path=wsi_path, errors=errors)
         else:
@@ -113,7 +113,7 @@ class BiomarkerExtractor:
             try:
                 result = self._run_task(task, patch, mask, mpp)
                 features.update(result)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 logger.warning("Task '%s' failed: %s", task, exc, exc_info=True)
                 errors.append(f"{task}: {exc}")
 
@@ -131,24 +131,28 @@ class BiomarkerExtractor:
         self,
         task: str,
         patch: np.ndarray,
-        mask: Optional[np.ndarray],
+        mask: np.ndarray | None,
         mpp: float,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         if task == "cell_density":
             _, nuclei = detect_nuclei(patch, self._cfg.min_cell_area_px, self._cfg.max_cell_area_px)
             area_mm2 = (patch.shape[0] * patch.shape[1] * mpp ** 2) / 1e6
             return {"cell_density_per_mm2": len(nuclei) / max(area_mm2, 1e-9)}
 
         if task == "nuclei_morphology":
-            labelled, _ = detect_nuclei(patch, self._cfg.min_cell_area_px, self._cfg.max_cell_area_px)
+            labelled, _ = detect_nuclei(
+                patch,
+                self._cfg.min_cell_area_px,
+                self._cfg.max_cell_area_px,
+            )
             morphs = measure_nuclei_morphology(patch, labelled)
             if morphs:
                 return {
-                    "mean_nucleus_area_px":    float(np.mean([m["area"] for m in morphs])),
-                    "mean_eccentricity":        float(np.mean([m["eccentricity"] for m in morphs])),
-                    "mean_solidity":            float(np.mean([m["solidity"] for m in morphs])),
-                    "mean_circularity":         float(np.mean([m["circularity"] for m in morphs])),
-                    "mean_hematoxylin":         float(np.mean([m["mean_hematoxylin"] for m in morphs])),
+                    "mean_nucleus_area_px": float(np.mean([m["area"] for m in morphs])),
+                    "mean_eccentricity": float(np.mean([m["eccentricity"] for m in morphs])),
+                    "mean_solidity": float(np.mean([m["solidity"] for m in morphs])),
+                    "mean_circularity": float(np.mean([m["circularity"] for m in morphs])),
+                    "mean_hematoxylin": float(np.mean([m["mean_hematoxylin"] for m in morphs])),
                 }
             return {}
 
@@ -171,7 +175,11 @@ class BiomarkerExtractor:
             }
 
         if task == "ki67_index":
-            labelled, _ = detect_nuclei(patch, self._cfg.min_cell_area_px, self._cfg.max_cell_area_px)
+            labelled, _ = detect_nuclei(
+                patch,
+                self._cfg.min_cell_area_px,
+                self._cfg.max_cell_area_px,
+            )
             nuclei_mask = (labelled > 0).astype(np.uint8)
             ki67 = compute_ki67_index(patch, nuclei_mask)
             return {"ki67_index": ki67}

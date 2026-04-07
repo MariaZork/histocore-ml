@@ -8,13 +8,18 @@ from pathlib import Path
 
 import numpy as np
 
-from histocoreml.config import OutputConfig
 from histocoreml.io.base_reader import WSIMetadata
 from histocoreml.output.base_writer import BaseMaskWriter, WriteResult
 from histocoreml.output.rle_codec import (
-    CocoRLE, PlainRLE,
-    coco_rle_decode, coco_rle_encode, coco_rle_from_dict,
-    plain_rle_decode, plain_rle_encode, plain_rle_from_dict, plain_rle_to_dict,
+    CocoRLE,
+    PlainRLE,
+    coco_rle_decode,
+    coco_rle_encode,
+    coco_rle_from_dict,
+    plain_rle_decode,
+    plain_rle_encode,
+    plain_rle_from_dict,
+    plain_rle_to_dict,
 )
 
 logger = logging.getLogger(__name__)
@@ -30,7 +35,10 @@ class RLEMaskWriter(BaseMaskWriter):
     def write(self, mask: np.ndarray, metadata: WSIMetadata, stem: str) -> WriteResult:
         subformat = getattr(self._cfg, "rle_subformat", _PLAIN).lower()
         if subformat not in _VALID_SUBFORMATS:
-            raise ValueError(f"Unknown rle_subformat '{subformat}'. Choose from: {sorted(_VALID_SUBFORMATS)}")
+            raise ValueError(
+                f"Unknown rle_subformat '{subformat}'. "
+                f"Choose from: {sorted(_VALID_SUBFORMATS)}"
+            )
 
         out_path = self._cfg.output_dir / f"{stem}_mask.json"
 
@@ -52,7 +60,11 @@ class RLEMaskWriter(BaseMaskWriter):
         )
 
     @staticmethod
-    def _build_plain_payload(mask, metadata, stem):
+    def _build_plain_payload(
+        mask: np.ndarray,
+        metadata: WSIMetadata,
+        stem: str,
+    ) -> tuple[dict, int, float]:
         rle: PlainRLE = plain_rle_encode(mask)
         payload = {
             "format": "plain_rle",
@@ -66,7 +78,11 @@ class RLEMaskWriter(BaseMaskWriter):
         return payload, len(rle.runs), rle.compression_ratio()
 
     @staticmethod
-    def _build_coco_payload(mask, metadata, stem):
+    def _build_coco_payload(
+        mask: np.ndarray,
+        metadata: WSIMetadata,
+        stem: str,
+    ) -> tuple[dict, int, float]:
         rle: CocoRLE = coco_rle_encode(mask)
         h, w = rle.size
         ratio = round((h * w) / max(len(rle.counts) * 4, 1), 2)
@@ -102,7 +118,7 @@ class RLEMaskReader:
         return tuple(self._data["shape"])
 
     @property
-    def mpp(self):
+    def mpp(self) -> float | None:
         return self._data.get("mpp")
 
     @property

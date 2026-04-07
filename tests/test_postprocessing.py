@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
-from histocoreml.postprocessing.memmap_canvas import MemmapCanvas
 from histocoreml.postprocessing.mask_assembler import MaskAssembler
+from histocoreml.postprocessing.memmap_canvas import MemmapCanvas
 from histocoreml.preprocessing.patch_coord import PatchCoord
-from tests.conftest import make_binary_mask, make_coord
 
 
 class TestMemmapCanvas:
@@ -56,6 +54,7 @@ class TestMaskAssemblerUnit:
     def _make_assembler(self, canvas_h=128, canvas_w=128):
         """Build a MaskAssembler with a mocked WSIMetadata."""
         from unittest.mock import MagicMock  # noqa: PLC0415
+
         from histocoreml.config import ModelConfig, TilingConfig  # noqa: PLC0415
 
         metadata = MagicMock()

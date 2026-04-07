@@ -17,7 +17,6 @@ Tissue detection
 from __future__ import annotations
 
 import logging
-from typing import Optional, Tuple
 
 import cv2
 import numpy as np
@@ -33,7 +32,7 @@ logger = logging.getLogger(__name__)
 def rescale_patch(
     patch: np.ndarray,
     coord: PatchCoord,
-    model_patch_size: Optional[int] = None,
+    model_patch_size: int | None = None,
 ) -> np.ndarray:
     """Resize *patch* to the model's canonical input size at the target MPP.
 
@@ -135,8 +134,8 @@ _MACENKO_MAX_C = np.array([1.9705, 1.0308])
 
 def macenko_normalise(
     patch: np.ndarray,
-    reference_stain_matrix: Optional[np.ndarray] = None,
-    reference_max_c: Optional[np.ndarray] = None,
+    reference_stain_matrix: np.ndarray | None = None,
+    reference_max_c: np.ndarray | None = None,
     Io: int = 240,
     beta: float = 0.15,
     alpha: float = 1.0,
@@ -165,7 +164,7 @@ def macenko_normalise(
     img = patch.reshape(-1, 3).astype(np.float64)
 
     # Optical density
-    img_od = -np.log((img.clip(1) / Io))
+    img_od = -np.log(img.clip(1) / Io)
 
     # Remove background
     mask = (img_od >= beta).all(axis=1)

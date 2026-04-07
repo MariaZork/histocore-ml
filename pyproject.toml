@@ -108,8 +108,12 @@ markers = [
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+exclude = ["examples/**/*.ipynb"]
+
+[tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "ANN", "BLE", "C4", "PLC"]
-ignore = ["ANN101", "ANN102", "ANN401"]
+ignore = ["ANN401"]
+per-file-ignores = {"tests/**/*.py" = ["ANN", "PLC0415"]}
 
 [tool.mypy]
 python_version = "3.10"

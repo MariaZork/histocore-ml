@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -45,18 +44,18 @@ class HistoSegDataset(Dataset):
         self,
         image_dir: Path,
         mask_dir: Path,
-        transform=None,
-        extensions: Optional[set] = None,
+        transform: object = None,
+        extensions: set | None = None,
     ) -> None:
         self._image_dir = Path(image_dir)
         self._mask_dir  = Path(mask_dir)
         self._transform = transform
         self._ext = extensions or _DEFAULT_EXTENSIONS
 
-        self._samples: List[Tuple[Path, Path]] = self._find_samples()
+        self._samples: list[tuple[Path, Path]] = self._find_samples()
         logger.info("HistoSegDataset: %d patches in %s", len(self._samples), image_dir)
 
-    def _find_samples(self) -> List[Tuple[Path, Path]]:
+    def _find_samples(self) -> list[tuple[Path, Path]]:
         pairs = []
         for img_path in sorted(self._image_dir.iterdir()):
             if img_path.suffix.lower() not in self._ext:
@@ -78,7 +77,7 @@ class HistoSegDataset(Dataset):
     def __len__(self) -> int:
         return len(self._samples)
 
-    def __getitem__(self, idx: int):
+    def __getitem__(self, idx: int) -> dict[str, object]:
         from PIL import Image  # noqa: PLC0415
         img_path, mask_path = self._samples[idx]
 
@@ -100,7 +99,7 @@ def build_train_dataloader(
     mask_dir: Path,
     batch_size: int = 8,
     num_workers: int = 4,
-    transform=None,
+    transform: object = None,
     shuffle: bool = True,
 ) -> DataLoader:
     """Build a DataLoader for segmentation training."""

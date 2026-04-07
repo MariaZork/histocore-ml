@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Tuple
-
 import numpy as np
-
 
 # Standard H&E stain matrix (Ruifrok & Johnston, 2001)
 _HE_MATRIX = np.array([
@@ -25,7 +22,7 @@ _HDAB_MATRIX = np.array([
 def separate_he_channels(
     patch: np.ndarray,
     Io: int = 240,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Separate H&E stained patch into Haematoxylin and Eosin channels.
 
     Args:
@@ -45,7 +42,7 @@ def separate_he_channels(
     concentrations = concentrations.clip(0)
 
     # Normalise each channel
-    def _norm(c):
+    def _norm(c: np.ndarray) -> np.ndarray:
         c_max = c.max() or 1.0
         return (c / c_max).reshape(h, w).astype(np.float32)
 
@@ -55,7 +52,7 @@ def separate_he_channels(
 def separate_hdab_channels(
     patch: np.ndarray,
     Io: int = 240,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Separate H-DAB stained patch into Haematoxylin and DAB channels.
 
     DAB (3,3'-diaminobenzidine) is used in IHC staining (e.g. Ki-67, ER, PR).
@@ -74,7 +71,7 @@ def separate_hdab_channels(
     stain_inv = np.linalg.pinv(_HDAB_MATRIX[:2])
     concentrations = (od @ stain_inv).clip(0)
 
-    def _norm(c):
+    def _norm(c: np.ndarray) -> np.ndarray:
         c_max = c.max() or 1.0
         return (c / c_max).reshape(h, w).astype(np.float32)
 

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Tuple
-
 import numpy as np
 
 
@@ -26,7 +24,7 @@ def iou_score(pred: np.ndarray, target: np.ndarray, smooth: float = 1e-6) -> flo
 
 def precision_recall_f1(
     pred: np.ndarray, target: np.ndarray
-) -> Tuple[float, float, float]:
+) -> tuple[float, float, float]:
     """Return (precision, recall, F1) for binary masks."""
     pred   = pred.astype(bool).ravel()
     target = target.astype(bool).ravel()

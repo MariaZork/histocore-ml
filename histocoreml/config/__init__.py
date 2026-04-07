@@ -10,10 +10,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Literal, Optional
 
 import yaml
-
 
 # ── Model / Inference ────────────────────────────────────────────────────────
 
@@ -84,7 +82,7 @@ class OutputConfig:
     output_format: str = "tiff"
     """Output format: 'tiff' | 'npy' | 'rle' | 'geojson' | 'zarr'."""
 
-    downsample_factor: Optional[int] = None
+    downsample_factor: int | None = None
     """If set, the output mask is written at 1/N of the WSI level-0 resolution."""
 
     compression: str = "lzw"
@@ -118,7 +116,7 @@ class FoundationConfig:
     model_name: str = "uni"
     """Foundation model name: 'uni' | 'conch' | 'plip' | 'ctranspath' | 'custom'."""
 
-    model_path: Optional[Path] = None
+    model_path: Path | None = None
     """Path to local model weights (required for 'custom')."""
 
     embedding_dim: int = 1024
@@ -211,14 +209,14 @@ class TrainingConfig:
 class BiomarkerConfig:
     """Configuration for biomarker extraction."""
 
-    tasks: List[str] = field(default_factory=lambda: ["cell_density"])
+    tasks: list[str] = field(default_factory=lambda: ["cell_density"])
     """List of biomarker tasks: 'cell_density' | 'nuclei_morphology' |
     'spatial_graph' | 'tumor_stroma_ratio' | 'ki67_index'."""
 
-    cell_model_path: Optional[Path] = None
+    cell_model_path: Path | None = None
     """Path to cell detection model weights."""
 
-    nuclei_model_path: Optional[Path] = None
+    nuclei_model_path: Path | None = None
     """Path to nuclei segmentation model weights."""
 
     target_mpp: float = 0.25
@@ -258,7 +256,7 @@ class PipelineConfig:
     """Python logging level: ``DEBUG`` | ``INFO`` | ``WARNING`` | ``ERROR``."""
 
     @classmethod
-    def from_yaml(cls, path: Path | str) -> "PipelineConfig":
+    def from_yaml(cls, path: Path | str) -> PipelineConfig:
         """Load a :class:`PipelineConfig` from a YAML file.
 
         Args:

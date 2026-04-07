@@ -5,7 +5,6 @@ from __future__ import annotations
 import abc
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Tuple
 
 import numpy as np
 
@@ -20,16 +19,16 @@ class WriteResult:
     path: Path
     """Absolute path to the written file."""
 
-    shape: Tuple[int, int]
+    shape: tuple[int, int]
     """(height, width) of the mask in pixels."""
 
     format: str
     """File format string, e.g. ``'tiff'``, ``'npy'``, ``'rle_plain'``."""
 
-    thumbnail_path: Optional[Path] = None
+    thumbnail_path: Path | None = None
     """Optional path to a QC thumbnail overlay (PNG)."""
 
-    metadata: Optional[dict] = None
+    metadata: dict | None = None
     """Optional dict of extra metadata (compression ratio, run count, etc.)."""
 
 

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional, Tuple
 
 import cv2
 import numpy as np
@@ -13,7 +12,7 @@ from histocoreml.config import OutputConfig
 
 logger = logging.getLogger(__name__)
 
-_OVERLAY_RGB: Tuple[int, int, int] = (255, 0, 0)
+_OVERLAY_RGB: tuple[int, int, int] = (255, 0, 0)
 
 
 def save_overlay(
@@ -22,7 +21,7 @@ def save_overlay(
     stem: str,
     cfg: OutputConfig,
     reader: object,
-) -> Optional[Path]:
+) -> Path | None:
     """Blend the binary *mask* over a slide thumbnail and write a PNG.
 
     Args:

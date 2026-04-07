@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional, Tuple
 
 import numpy as np
 
@@ -31,7 +30,7 @@ class OpenSlideReader(BaseWSIReader):
         super().__init__(path)
         self._slide = None  # lazy-opened in open()
 
-    def open(self) -> "OpenSlideReader":
+    def open(self) -> OpenSlideReader:
         try:
             import openslide  # noqa: PLC0415
         except ImportError as exc:
@@ -92,16 +91,16 @@ class OpenSlideReader(BaseWSIReader):
 
     def read_region(
         self,
-        location: Tuple[int, int],
+        location: tuple[int, int],
         level: int,
-        size: Tuple[int, int],
+        size: tuple[int, int],
     ) -> np.ndarray:
         """Read a region and return an RGB uint8 array (H, W, 3)."""
         self._ensure_open()
         pil_img = self._slide.read_region(location, level, size)
         return np.array(pil_img.convert("RGB"), dtype=np.uint8)
 
-    def get_thumbnail(self, max_size: Tuple[int, int] = (1024, 1024)) -> np.ndarray:
+    def get_thumbnail(self, max_size: tuple[int, int] = (1024, 1024)) -> np.ndarray:
         self._ensure_open()
         pil_thumb = self._slide.get_thumbnail(max_size)
         return np.array(pil_thumb.convert("RGB"), dtype=np.uint8)
@@ -117,7 +116,7 @@ class OpenSlideReader(BaseWSIReader):
             )
 
     @staticmethod
-    def _parse_float(value: Optional[str]) -> Optional[float]:
+    def _parse_float(value: str | None) -> float | None:
         if value is None:
             return None
         try:

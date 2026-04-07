@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import List, Optional
 
 import numpy as np
 import torch
@@ -37,9 +36,9 @@ class ONNXModel(BaseSegmentationModel):
     def __init__(self, cfg: ModelConfig) -> None:
         super().__init__(cfg)
         self._session = None
-        self._input_name: Optional[str] = None
+        self._input_name: str | None = None
 
-    def load(self) -> "ONNXModel":
+    def load(self) -> ONNXModel:
         try:
             import onnxruntime as ort  # noqa: PLC0415
         except ImportError as exc:
@@ -77,7 +76,7 @@ class ONNXModel(BaseSegmentationModel):
         probs = 1.0 / (1.0 + np.exp(-logits))  # sigmoid
         return (probs >= self._cfg.threshold).astype(np.uint8)
 
-    def _get_providers(self) -> List[str]:
+    def _get_providers(self) -> list[str]:
         """Select ONNX Runtime execution providers based on config device."""
         device = self._cfg.device.lower()
         if "cuda" in device:

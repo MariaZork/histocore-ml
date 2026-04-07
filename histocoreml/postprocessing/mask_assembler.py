@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import List
 
 import numpy as np
 
@@ -55,7 +54,7 @@ class MaskAssembler:
             canvas_w, canvas_h, inf_level, self._inf_ds, self._canvas.tmpdir,
         )
 
-    def add_batch(self, masks: np.ndarray, coords: List[PatchCoord]) -> None:
+    def add_batch(self, masks: np.ndarray, coords: list[PatchCoord]) -> None:
         """Write a batch of patch predictions into the canvas.
 
         Args:
@@ -65,7 +64,7 @@ class MaskAssembler:
         for mask, coord in zip(masks, coords):
             self._write_patch(mask, coord)
 
-    def add_proba_batch(self, probas: np.ndarray, coords: List[PatchCoord]) -> None:
+    def add_proba_batch(self, probas: np.ndarray, coords: list[PatchCoord]) -> None:
         """Write soft probability predictions into the canvas.
 
         Args:

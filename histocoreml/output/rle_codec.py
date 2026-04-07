@@ -14,8 +14,8 @@ Streaming helpers
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Dict, List, Sequence, Tuple
 
 import numpy as np
 
@@ -24,8 +24,8 @@ import numpy as np
 class PlainRLE:
     """Row-major RLE of a binary mask."""
 
-    shape: Tuple[int, int]
-    runs: List[Tuple[int, int]]
+    shape: tuple[int, int]
+    runs: list[tuple[int, int]]
 
     def decode(self) -> np.ndarray:
         return plain_rle_decode(self)
@@ -45,10 +45,10 @@ class PlainRLE:
 class CocoRLE:
     """COCO-style column-major RLE of a binary mask."""
 
-    size: Tuple[int, int]
-    counts: List[int]
+    size: tuple[int, int]
+    counts: list[int]
 
-    def to_coco_dict(self) -> Dict:
+    def to_coco_dict(self) -> dict:
         return {"size": list(self.size), "counts": self.counts}
 
     def decode(self) -> np.ndarray:
@@ -69,7 +69,7 @@ def plain_rle_encode(mask: np.ndarray) -> PlainRLE:
     change_pos = np.where(np.diff(flat))[0] + 1
     starts = np.concatenate(([0], change_pos))
     ends   = np.concatenate((change_pos, [flat.size]))
-    runs: List[Tuple[int, int]] = [
+    runs: list[tuple[int, int]] = [
         (int(flat[s]), int(e - s)) for s, e in zip(starts, ends)
     ]
     return PlainRLE(shape=mask.shape, runs=runs)
@@ -117,13 +117,13 @@ def coco_rle_decode(rle: CocoRLE) -> np.ndarray:
 
 # ── Streaming encode / merge ──────────────────────────────────────────────────
 
-def encode_patches_to_plain(masks: np.ndarray) -> List[PlainRLE]:
+def encode_patches_to_plain(masks: np.ndarray) -> list[PlainRLE]:
     """Encode a batch of patch masks to :class:`PlainRLE` objects."""
     return [plain_rle_encode(masks[i]) for i in range(len(masks))]
 
 
 def merge_plain_rles(
-    patch_rles: Sequence[Tuple],
+    patch_rles: Sequence[tuple],
     canvas_height: int,
     canvas_width: int,
     inf_ds: float = 1.0,
@@ -155,7 +155,7 @@ def plain_rle_to_dict(rle: PlainRLE) -> dict:
 
 def plain_rle_from_dict(d: dict) -> PlainRLE:
     h, w = d["shape"]
-    runs: List[Tuple[int, int]] = [tuple(r) for r in d["runs"]]  # type: ignore[misc]
+    runs: list[tuple[int, int]] = [tuple(r) for r in d["runs"]]  # type: ignore[misc]
     return PlainRLE(shape=(h, w), runs=runs)
 
 

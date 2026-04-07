@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Tuple
 
 import numpy as np
 
@@ -14,7 +13,7 @@ def detect_nuclei(
     patch: np.ndarray,
     min_area: int = 50,
     max_area: int = 5000,
-) -> Tuple[np.ndarray, List[Dict]]:
+) -> tuple[np.ndarray, list[dict]]:
     """Detect nuclei in an H&E patch using colour thresholding + watershed.
 
     Args:
@@ -27,7 +26,6 @@ def detect_nuclei(
         Each nucleus dict has keys: label, centroid, area, bbox.
     """
     import cv2  # noqa: PLC0415
-    from scipy import ndimage  # noqa: PLC0415
 
     # Check for uniform patches (all same color) - no nuclei possible
     if np.all(patch == patch[0, 0, 0]):
@@ -76,7 +74,7 @@ def detect_nuclei(
 def measure_nuclei_morphology(
     patch: np.ndarray,
     labelled_mask: np.ndarray,
-) -> List[Dict]:
+) -> list[dict]:
     """Compute morphological features for each labelled nucleus.
 
     Args:

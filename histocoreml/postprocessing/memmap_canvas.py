@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import shutil
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Tuple
 
 import numpy as np
 
@@ -27,11 +27,11 @@ class MemmapCanvas:
 
     accumulator: np.ndarray
     counts: np.ndarray
-    shape: Tuple[int, int]
+    shape: tuple[int, int]
     tmpdir: Path
 
     @classmethod
-    def create(cls, height: int, width: int) -> "MemmapCanvas":
+    def create(cls, height: int, width: int) -> MemmapCanvas:
         """Allocate a fresh canvas backed by temp files.
 
         Args:
@@ -74,5 +74,4 @@ class MemmapCanvas:
 
     def cleanup(self) -> None:
         """Delete the temporary directory and all mmap files."""
-        import shutil
         shutil.rmtree(self.tmpdir, ignore_errors=True)

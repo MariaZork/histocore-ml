@@ -6,13 +6,15 @@ import numpy as np
 import pytest
 
 from histocoreml.output.rle_codec import (
-    CocoRLE, PlainRLE,
-    coco_rle_decode, coco_rle_encode,
-    encode_patches_to_plain, merge_plain_rles,
-    plain_rle_decode, plain_rle_encode,
-    plain_rle_from_dict, plain_rle_to_dict,
-    coco_rle_from_dict,
     _validate_mask,
+    coco_rle_decode,
+    coco_rle_encode,
+    coco_rle_from_dict,
+    encode_patches_to_plain,
+    plain_rle_decode,
+    plain_rle_encode,
+    plain_rle_from_dict,
+    plain_rle_to_dict,
 )
 from tests.conftest import make_binary_mask
 

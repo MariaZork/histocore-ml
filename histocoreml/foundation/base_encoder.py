@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import abc
-from typing import Optional
+from typing import Any
 
 import numpy as np
 import torch
@@ -23,20 +23,20 @@ class BaseEncoder(abc.ABC):
     def __init__(self, cfg: FoundationConfig) -> None:
         self._cfg = cfg
         self._device = torch.device(cfg.device)
-        self._model: Optional[torch.nn.Module] = None
+        self._model: torch.nn.Module | None = None
 
     @property
     def embedding_dim(self) -> int:
         return self._cfg.embedding_dim
 
     @abc.abstractmethod
-    def load(self) -> "BaseEncoder":
+    def load(self) -> BaseEncoder:
         """Load model weights. Returns self."""
 
-    def __enter__(self) -> "BaseEncoder":
+    def __enter__(self) -> BaseEncoder:
         return self.load()
 
-    def __exit__(self, *_) -> None:
+    def __exit__(self, *_: object) -> None:
         pass
 
     @abc.abstractmethod
@@ -60,5 +60,5 @@ class BaseEncoder(abc.ABC):
         return emb
 
     @abc.abstractmethod
-    def get_transform(self):
+    def get_transform(self) -> Any:
         """Return the torchvision transform expected by this encoder."""

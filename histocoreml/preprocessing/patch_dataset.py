@@ -17,19 +17,24 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional
 
-import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
 
 from histocoreml.config import TilingConfig
+from histocoreml.io.base_reader import BaseWSIReader
 from histocoreml.io.factory import get_reader
 from histocoreml.preprocessing.patch_coord import PatchCoord
 from histocoreml.preprocessing.patch_utils import (
     is_tissue as _is_tissue,
+)
+from histocoreml.preprocessing.patch_utils import (
     macenko_normalise as _macenko_normalise,
+)
+from histocoreml.preprocessing.patch_utils import (
     pad_to_size as _pad_to_size,
+)
+from histocoreml.preprocessing.patch_utils import (
     rescale_patch as _rescale_patch,
 )
 
@@ -50,7 +55,7 @@ class PatchDataset(Dataset):
     def __init__(
         self,
         slide_path: Path,
-        coords: List[PatchCoord],
+        coords: list[PatchCoord],
         tiling_cfg: TilingConfig,
         model_patch_size: int,
         normalise: bool = False,
@@ -62,7 +67,7 @@ class PatchDataset(Dataset):
         self._normalise = normalise
         self._reader = None
 
-    def _get_reader(self):
+    def _get_reader(self) -> BaseWSIReader:
         if self._reader is None:
             self._reader = get_reader(self._slide_path)
             self._reader.open()
@@ -72,13 +77,13 @@ class PatchDataset(Dataset):
         if self._reader is not None:
             try:
                 self._reader.close()
-            except Exception:
+            except OSError:
                 pass
 
     def __len__(self) -> int:
         return len(self._coords)
 
-    def __getitem__(self, idx: int) -> Optional[Dict]:
+    def __getitem__(self, idx: int) -> dict | None:
         coord  = self._coords[idx]
         reader = self._get_reader()
 
@@ -102,11 +107,12 @@ class PatchDataset(Dataset):
 
 def build_dataloader(
     slide_path: Path,
-    coords: List[PatchCoord],
+    coords: list[PatchCoord],
     tiling_cfg: TilingConfig,
     model_patch_size: int,
     batch_size: int,
     normalise: bool = False,
+    transform: object = None,
 ) -> DataLoader:
     """Build a DataLoader for WSI patch inference.
 
@@ -135,7 +141,7 @@ def build_dataloader(
     )
 
 
-def _collate_skip_none(batch: List[Optional[Dict]]) -> Optional[Dict]:
+def _collate_skip_none(batch: list[dict | None]) -> dict | None:
     """Collate a list of dataset items, silently dropping ``None`` entries."""
     valid = [item for item in batch if item is not None]
     if not valid:

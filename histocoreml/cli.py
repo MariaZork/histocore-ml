@@ -20,8 +20,6 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
-from typing import List, Optional
-
 
 # ── histo-segment ─────────────────────────────────────────────────────────────
 
@@ -31,33 +29,49 @@ def _segment_parser() -> argparse.ArgumentParser:
     p.add_argument("-c", "--config",  type=Path, required=True, metavar="YAML")
     p.add_argument("-i", "--input",   nargs="+", type=Path, required=True, metavar="FILE")
     p.add_argument("--output-dir",    type=Path, default=None)
-    p.add_argument("--output-format", choices=["tiff","npy","rle","zarr","geojson"], default=None)
+    p.add_argument(
+        "--output-format",
+        choices=["tiff", "npy", "rle", "zarr", "geojson"],
+        default=None,
+    )
     p.add_argument("--device",        type=str, default=None)
     p.add_argument("--batch-size",    type=int, default=None)
     p.add_argument("--save-overlay",  action="store_true", default=None)
     p.add_argument("--overlay-alpha", type=float, default=None)
     p.add_argument("--overlay-max-edge", type=int, default=None)
-    p.add_argument("--normalise",     action="store_true", help="Apply Macenko stain normalisation.")
+    p.add_argument(
+        "--normalise",
+        action="store_true",
+        help="Apply Macenko stain normalisation.",
+    )
     return p
 
 
-def main_segment(argv: Optional[List[str]] = None) -> int:
+def main_segment(argv: list[str] | None = None) -> int:
     args = _segment_parser().parse_args(argv)
 
-    from histocoreml.config import PipelineConfig   # noqa: PLC0415
-    from histocoreml.pipeline import SegmentationPipeline  # noqa: PLC0415
     from dataclasses import replace  # noqa: PLC0415
+
+    from histocoreml.config import PipelineConfig  # noqa: PLC0415
+    from histocoreml.pipeline import SegmentationPipeline  # noqa: PLC0415
 
     cfg = PipelineConfig.from_yaml(args.config)
 
     overrides_model, overrides_output = {}, {}
-    if args.device:       overrides_model["device"]       = args.device
-    if args.batch_size:   overrides_model["batch_size"]   = args.batch_size
-    if args.output_dir:   overrides_output["output_dir"]  = args.output_dir
-    if args.output_format:overrides_output["output_format"]= args.output_format
-    if args.save_overlay: overrides_output["save_overlay"] = True
-    if args.overlay_alpha is not None:    overrides_output["overlay_alpha"]    = args.overlay_alpha
-    if args.overlay_max_edge is not None: overrides_output["overlay_max_edge"] = args.overlay_max_edge
+    if args.device:
+        overrides_model["device"] = args.device
+    if args.batch_size:
+        overrides_model["batch_size"] = args.batch_size
+    if args.output_dir:
+        overrides_output["output_dir"] = args.output_dir
+    if args.output_format:
+        overrides_output["output_format"] = args.output_format
+    if args.save_overlay:
+        overrides_output["save_overlay"] = True
+    if args.overlay_alpha is not None:
+        overrides_output["overlay_alpha"] = args.overlay_alpha
+    if args.overlay_max_edge is not None:
+        overrides_output["overlay_max_edge"] = args.overlay_max_edge
 
     if overrides_model:
         cfg = replace(cfg, model=replace(cfg.model, **overrides_model))
@@ -104,11 +118,11 @@ def _embed_parser() -> argparse.ArgumentParser:
     return p
 
 
-def main_embed(argv: Optional[List[str]] = None) -> int:
+def main_embed(argv: list[str] | None = None) -> int:
     args = _embed_parser().parse_args(argv)
 
     from histocoreml.config import FoundationConfig  # noqa: PLC0415
-    from histocoreml.foundation import get_encoder, EmbeddingPipeline  # noqa: PLC0415
+    from histocoreml.foundation import EmbeddingPipeline, get_encoder  # noqa: PLC0415
 
     cfg = FoundationConfig(
         model_name=args.model,
@@ -142,10 +156,11 @@ def _extract_parser() -> argparse.ArgumentParser:
     return p
 
 
-def main_extract(argv: Optional[List[str]] = None) -> int:
+def main_extract(argv: list[str] | None = None) -> int:
     import numpy as np  # noqa: PLC0415
-    from histocoreml.config import BiomarkerConfig  # noqa: PLC0415
+
     from histocoreml.biomarkers import BiomarkerExtractor  # noqa: PLC0415
+    from histocoreml.config import BiomarkerConfig  # noqa: PLC0415
 
     args = _extract_parser().parse_args(argv)
 
@@ -187,7 +202,7 @@ def _train_parser() -> argparse.ArgumentParser:
     return p
 
 
-def main_train(argv: Optional[List[str]] = None) -> int:
+def main_train(argv: list[str] | None = None) -> int:
     args = _train_parser().parse_args(argv)
 
     from histocoreml.config import TrainingConfig  # noqa: PLC0415
@@ -205,8 +220,13 @@ def main_train(argv: Optional[List[str]] = None) -> int:
 
     train_loader = build_train_dataloader(args.images, args.masks, batch_size=cfg.batch_size)
     val_images = args.val_images or args.images
-    val_masks  = args.val_masks  or args.masks
-    val_loader = build_train_dataloader(val_images, val_masks, batch_size=cfg.batch_size, shuffle=False)
+    val_masks = args.val_masks or args.masks
+    val_loader = build_train_dataloader(
+        val_images,
+        val_masks,
+        batch_size=cfg.batch_size,
+        shuffle=False,
+    )
 
     trainer = SegmentationTrainer(cfg)
     history = trainer.fit(train_loader, val_loader)

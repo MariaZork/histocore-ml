@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 import numpy as np
 import torch
@@ -62,7 +62,7 @@ class ViTEncoder(BaseEncoder):
         self._std = std
         self._use_cls_token = use_cls_token
 
-    def load(self) -> "ViTEncoder":
+    def load(self) -> ViTEncoder:
         try:
             import timm  # noqa: PLC0415
         except ImportError as exc:
@@ -120,7 +120,7 @@ class ViTEncoder(BaseEncoder):
 
         return out.cpu().numpy().astype(np.float32)
 
-    def get_transform(self):
+    def get_transform(self) -> Any:
         """Return a minimal torchvision transform (normalisation already in encode_batch)."""
         try:
             from torchvision import transforms  # noqa: PLC0415
