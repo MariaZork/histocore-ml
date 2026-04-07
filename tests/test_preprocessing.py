@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from histocoreml.config import TilingConfig
 from histocoreml.preprocessing.patch_coord import PatchCoord
 from histocoreml.preprocessing.patch_utils import (
-    is_tissue, macenko_normalise, pad_to_size, rescale_patch, tissue_mask,
+    is_tissue,
+    macenko_normalise,
+    pad_to_size,
+    rescale_patch,
+    tissue_mask,
 )
 from tests.conftest import make_coord, make_rgb_patch
 

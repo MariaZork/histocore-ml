@@ -6,18 +6,15 @@ import logging
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional
 
 import numpy as np
-import torch
 
-from histocoreml.config import FoundationConfig
+from histocoreml.config import FoundationConfig, ModelConfig, TilingConfig
 from histocoreml.foundation.base_encoder import BaseEncoder
 from histocoreml.foundation.vit_encoder import UNIEncoder, ViTEncoder
 from histocoreml.io.factory import get_reader
 from histocoreml.preprocessing.grid_generator import generate_patch_coords
 from histocoreml.preprocessing.patch_dataset import build_dataloader
-from histocoreml.config import ModelConfig, TilingConfig
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +62,7 @@ class EmbeddingResult:
     embeddings: np.ndarray          # (N_patches, embedding_dim)
     coords: list                    # List[PatchCoord]
     elapsed_seconds: float
-    errors: List[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
 
     @property
     def success(self) -> bool:
@@ -107,10 +104,10 @@ class EmbeddingPipeline:
 
     def run(
         self,
-        wsi_paths: List[Path],
-        output_dir: Optional[Path] = None,
+        wsi_paths: list[Path],
+        output_dir: Path | None = None,
         save: bool = True,
-    ) -> List[EmbeddingResult]:
+    ) -> list[EmbeddingResult]:
         """Extract embeddings for a list of WSI files.
 
         Args:
@@ -121,7 +118,7 @@ class EmbeddingPipeline:
         Returns:
             List of :class:`EmbeddingResult` objects.
         """
-        results: List[EmbeddingResult] = []
+        results: list[EmbeddingResult] = []
         with self._encoder as enc:
             for path in wsi_paths:
                 try:
@@ -165,7 +162,7 @@ class EmbeddingPipeline:
             batch_size=self._cfg.batch_size,
         )
 
-        all_emb: List[np.ndarray] = []
+        all_emb: list[np.ndarray] = []
         all_coords = []
 
         for batch in loader:

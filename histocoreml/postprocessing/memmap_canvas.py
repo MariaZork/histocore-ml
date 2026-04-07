@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import gc
+import shutil
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Tuple
 
 import numpy as np
 
@@ -27,11 +29,11 @@ class MemmapCanvas:
 
     accumulator: np.ndarray
     counts: np.ndarray
-    shape: Tuple[int, int]
+    shape: tuple[int, int]
     tmpdir: Path
 
     @classmethod
-    def create(cls, height: int, width: int) -> "MemmapCanvas":
+    def create(cls, height: int, width: int) -> MemmapCanvas:
         """Allocate a fresh canvas backed by temp files.
 
         Args:
@@ -47,9 +49,7 @@ class MemmapCanvas:
             accumulator=np.memmap(
                 str(tmpdir / "accumulator.dat"), dtype=np.uint32, mode="w+", shape=shape
             ),
-            counts=np.memmap(
-                str(tmpdir / "counts.dat"), dtype=np.uint32, mode="w+", shape=shape
-            ),
+            counts=np.memmap(str(tmpdir / "counts.dat"), dtype=np.uint32, mode="w+", shape=shape),
             shape=shape,
             tmpdir=tmpdir,
         )
@@ -74,5 +74,44 @@ class MemmapCanvas:
 
     def cleanup(self) -> None:
         """Delete the temporary directory and all mmap files."""
-        import shutil
-        shutil.rmtree(self.tmpdir, ignore_errors=True)
+
+        def _close_mmap(obj: object) -> None:
+            if obj is None:
+                return
+            close = getattr(obj, "close", None)
+            if callable(close):
+                try:
+                    close()
+                except OSError:
+                    pass
+
+        for array in (self.accumulator, self.counts):
+            if hasattr(array, "flush"):
+                try:
+                    array.flush()
+                except OSError:
+                    pass
+
+            _close_mmap(getattr(array, "_mmap", None))
+            _close_mmap(getattr(array, "base", None))
+            _close_mmap(getattr(array, "close", None))
+
+        self.accumulator = np.zeros((0,), dtype=np.uint32)
+        self.counts = np.zeros((0,), dtype=np.uint32)
+        del array
+        gc.collect()
+
+        def _remove(path: Path) -> None:
+            try:
+                shutil.rmtree(path)
+            except FileNotFoundError:
+                return
+            except PermissionError:
+                time.sleep(0.2)
+                gc.collect()
+                try:
+                    shutil.rmtree(path)
+                except (PermissionError, FileNotFoundError):
+                    pass
+
+        _remove(self.tmpdir)

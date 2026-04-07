@@ -16,7 +16,6 @@ extracted region to the canonical ``patch_size × patch_size`` at target_mpp.
 from __future__ import annotations
 
 import logging
-from typing import List
 
 from histocoreml.config import ModelConfig, TilingConfig
 from histocoreml.io.base_reader import WSIMetadata
@@ -30,7 +29,7 @@ def generate_patch_coords(
     model_cfg: ModelConfig,
     tiling_cfg: TilingConfig,
     slide_id: str = "",
-) -> List[PatchCoord]:
+) -> list[PatchCoord]:
     """Compute all patch coordinates for a slide at the target resolution.
 
     Each :class:`PatchCoord` describes:
@@ -78,7 +77,7 @@ def generate_patch_coords(
     w, h = metadata.level_dimensions[level]
     ds = metadata.level_downsamples[level]
 
-    coords: List[PatchCoord] = []
+    coords: list[PatchCoord] = []
     row_idx = 0
     y = 0
     while y < h:

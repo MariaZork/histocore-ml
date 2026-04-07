@@ -23,7 +23,7 @@ Usage::
 from histocoreml.biomarkers.extractor import BiomarkerExtractor, BiomarkerReport
 from histocoreml.biomarkers.nuclei import detect_nuclei, measure_nuclei_morphology
 from histocoreml.biomarkers.spatial import build_spatial_graph, compute_graph_features
-from histocoreml.biomarkers.stain import separate_he_channels, compute_ki67_index
+from histocoreml.biomarkers.stain import compute_ki67_index, separate_he_channels
 
 __all__ = [
     "BiomarkerExtractor", "BiomarkerReport",

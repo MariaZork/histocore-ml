@@ -5,7 +5,12 @@ from __future__ import annotations
 from histocoreml.config import OutputConfig
 from histocoreml.output.base_writer import BaseMaskWriter
 from histocoreml.output.rle_writer import RLEMaskWriter
-from histocoreml.output.writers import GeoJSONMaskWriter, NumpyMaskWriter, TiffMaskWriter, ZarrMaskWriter
+from histocoreml.output.writers import (
+    GeoJSONMaskWriter,
+    NumpyMaskWriter,
+    TiffMaskWriter,
+    ZarrMaskWriter,
+)
 
 _WRITER_REGISTRY: dict[str, type[BaseMaskWriter]] = {
     "tiff":    TiffMaskWriter,

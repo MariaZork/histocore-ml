@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import logging
-from typing import List
 
 import numpy as np
+from numpy.typing import NDArray
 
 from histocoreml.config import ModelConfig, TilingConfig
 from histocoreml.io.base_reader import WSIMetadata
@@ -52,20 +52,24 @@ class MaskAssembler:
         logger.info(
             "MaskAssembler canvas: (%d × %d px) at inference level %d "
             "(ds=%.1f) backed by memmap in %s",
-            canvas_w, canvas_h, inf_level, self._inf_ds, self._canvas.tmpdir,
+            canvas_w,
+            canvas_h,
+            inf_level,
+            self._inf_ds,
+            self._canvas.tmpdir,
         )
 
-    def add_batch(self, masks: np.ndarray, coords: List[PatchCoord]) -> None:
+    def add_batch(self, masks: np.ndarray, coords: list[PatchCoord]) -> None:
         """Write a batch of patch predictions into the canvas.
 
         Args:
-            masks:  Binary uint8 array ``(N, H, W)``.
+            masks: Binary uint8 array ``(N, H, W)``.
             coords: Corresponding :class:`PatchCoord` objects (same order).
         """
         for mask, coord in zip(masks, coords):
             self._write_patch(mask, coord)
 
-    def add_proba_batch(self, probas: np.ndarray, coords: List[PatchCoord]) -> None:
+    def add_proba_batch(self, probas: np.ndarray, coords: list[PatchCoord]) -> None:
         """Write soft probability predictions into the canvas.
 
         Args:
@@ -73,9 +77,9 @@ class MaskAssembler:
             coords: Corresponding :class:`PatchCoord` objects.
         """
         # Scale to uint32 range for integer accumulation
-        scaled = (probas * 65535).astype(np.uint32)
-        for proba_scaled, coord in zip(scaled, coords):
-            self._write_patch(proba_scaled, coord)
+        scaled: NDArray[np.uint32] = (probas * 65535).astype(np.uint32)
+        for idx, coord in enumerate(coords):
+            self._write_patch(scaled[idx], coord)
 
     def finalise(self) -> np.ndarray:
         """Average all accumulated predictions and return a binary mask.
@@ -119,5 +123,7 @@ class MaskAssembler:
         my1 = my0 + (y1 - y0)
         mx1 = mx0 + (x1 - x0)
 
-        self._canvas.accumulator[y0:y1, x0:x1] += mask[my0:my1, mx0:mx1].astype(np.uint32)
+        self._canvas.accumulator[y0:y1, x0:x1] += mask[
+            my0:my1, mx0:mx1
+        ].astype(np.uint32)
         self._canvas.counts[y0:y1, x0:x1] += 1

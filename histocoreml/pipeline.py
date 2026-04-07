@@ -17,12 +17,12 @@ import logging
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional
 
 import numpy as np
 
 from histocoreml.config import PipelineConfig
 from histocoreml.inference.torchscript_model import TorchScriptModel
+from histocoreml.io.base_reader import BaseWSIReader, WSIMetadata
 from histocoreml.io.factory import get_reader
 from histocoreml.output.base_writer import WriteResult
 from histocoreml.output.factory import get_writer
@@ -44,14 +44,14 @@ class PipelineResult:
     write_result: WriteResult
     patch_count: int
     elapsed_seconds: float
-    errors: List[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
 
     @property
     def success(self) -> bool:
         return len(self.errors) == 0
 
 
-def _make_assembler(metadata, cfg: PipelineConfig) -> MaskAssembler:
+def _make_assembler(metadata: WSIMetadata, cfg: PipelineConfig) -> MaskAssembler:
     return MaskAssembler(
         metadata=metadata,
         model_cfg=cfg.model,
@@ -63,12 +63,12 @@ def _make_assembler(metadata, cfg: PipelineConfig) -> MaskAssembler:
 def _finalise_and_write(
     assembler: MaskAssembler,
     cfg: PipelineConfig,
-    metadata,
+    metadata: WSIMetadata,
     stem: str,
     patch_count: int,
     t0: float,
     wsi_path: Path,
-    reader=None,
+    reader: BaseWSIReader | None = None,
 ) -> PipelineResult:
     logger.info("Finalising mask…")
     final_mask = assembler.finalise()
@@ -116,9 +116,9 @@ class SegmentationPipeline:
         self._cfg = cfg
         setup_logging(cfg.log_level)
 
-    def run(self, wsi_paths: List[Path]) -> List[PipelineResult]:
+    def run(self, wsi_paths: list[Path]) -> list[PipelineResult]:
         """Process a list of WSI files sequentially."""
-        results: List[PipelineResult] = []
+        results: list[PipelineResult] = []
         for path in wsi_paths:
             try:
                 results.append(self._process_slide(Path(path)))

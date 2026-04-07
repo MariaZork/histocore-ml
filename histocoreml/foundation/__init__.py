@@ -20,8 +20,8 @@ Usage::
 """
 
 from histocoreml.foundation.base_encoder import BaseEncoder
-from histocoreml.foundation.vit_encoder import ViTEncoder
-from histocoreml.foundation.factory import get_encoder
 from histocoreml.foundation.embedding_pipeline import EmbeddingPipeline
+from histocoreml.foundation.factory import get_encoder
+from histocoreml.foundation.vit_encoder import ViTEncoder
 
 __all__ = ["BaseEncoder", "ViTEncoder", "get_encoder", "EmbeddingPipeline"]

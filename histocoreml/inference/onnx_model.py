@@ -5,18 +5,19 @@ a full PyTorch installation on the deployment target.
 
 Install the runtime::
 
-    pip install onnxruntime          # CPU
-    pip install onnxruntime-gpu      # GPU (CUDA)
+    pip install onnxruntime  # CPU
+    pip install onnxruntime-gpu  # GPU (CUDA)
 """
 
 from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import List, Optional
+from typing import Any
 
 import numpy as np
 import torch
+from numpy.typing import NDArray
 
 from histocoreml.config import ModelConfig
 from histocoreml.inference.base_model import BaseSegmentationModel
@@ -29,17 +30,17 @@ class ONNXModel(BaseSegmentationModel):
 
     Usage::
 
-        cfg   = ModelConfig(model_path="model.onnx", device="cpu")
+        cfg = ModelConfig(model_path="model.onnx", device="cpu")
         with ONNXModel(cfg) as model:
             masks = model.predict_batch(batch_tensor)
     """
 
     def __init__(self, cfg: ModelConfig) -> None:
         super().__init__(cfg)
-        self._session = None
-        self._input_name: Optional[str] = None
+        self._session: Any | None = None
+        self._input_name: str | None = None
 
-    def load(self) -> "ONNXModel":
+    def load(self) -> ONNXModel:
         try:
             import onnxruntime as ort  # noqa: PLC0415
         except ImportError as exc:
@@ -52,11 +53,15 @@ class ONNXModel(BaseSegmentationModel):
             raise FileNotFoundError(f"ONNX model not found: {model_path}")
 
         providers = self._get_providers()
-        logger.info("Loading ONNX model from %s with providers: %s", model_path, providers)
+        logger.info(
+            "Loading ONNX model from %s with providers: %s", model_path, providers
+        )
 
         opts = ort.SessionOptions()
         opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-        self._session = ort.InferenceSession(str(model_path), opts, providers=providers)
+        self._session = ort.InferenceSession(
+            str(model_path), opts, providers=providers
+        )
         self._input_name = self._session.get_inputs()[0].name
         logger.info("ONNX model loaded successfully")
         return self
@@ -65,7 +70,9 @@ class ONNXModel(BaseSegmentationModel):
         if self._session is None:
             raise RuntimeError("Model not loaded.")
 
-        np_batch = batch.cpu().numpy().astype(np.float32)
+        np_batch: NDArray[np.float32] = batch.cpu().numpy().astype(np.float32)
+        assert self._session is not None
+        assert self._input_name is not None
         outputs = self._session.run(None, {self._input_name: np_batch})
         logits = outputs[0]
 
@@ -77,7 +84,7 @@ class ONNXModel(BaseSegmentationModel):
         probs = 1.0 / (1.0 + np.exp(-logits))  # sigmoid
         return (probs >= self._cfg.threshold).astype(np.uint8)
 
-    def _get_providers(self) -> List[str]:
+    def _get_providers(self) -> list[str]:
         """Select ONNX Runtime execution providers based on config device."""
         device = self._cfg.device.lower()
         if "cuda" in device:

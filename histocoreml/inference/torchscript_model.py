@@ -28,7 +28,7 @@ class TorchScriptModel(BaseSegmentationModel):
         self._model: torch.jit.ScriptModule | None = None
         self._device = torch.device(cfg.device)
 
-    def load(self) -> "TorchScriptModel":
+    def load(self) -> TorchScriptModel:
         model_path = Path(self._cfg.model_path)
         if not model_path.exists():
             raise FileNotFoundError(f"Model file not found: {model_path}")

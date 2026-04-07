@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Tuple
-
 import numpy as np
 
 
-def build_spatial_graph(centroids: List[Tuple[float, float]]) -> Dict:
+def build_spatial_graph(centroids: list[tuple[float, float]]) -> dict:
     """Build a Delaunay triangulation graph from nucleus centroids.
 
     Args:
@@ -28,42 +26,51 @@ def build_spatial_graph(centroids: List[Tuple[float, float]]) -> Dict:
 
     # Check if all points are collinear (Delaunay will fail)
     if len(pts) >= 2:
-        # Check if all points lie on the same line
-        x_diff = pts[:, 0] - pts[0, 0]
-        y_diff = pts[:, 1] - pts[0, 1]
-        # If all x differences are zero (vertical line) or all slopes are the same
-        if np.all(x_diff == 0) or np.allclose(y_diff / (x_diff + 1e-10), y_diff[1] / (x_diff[1] + 1e-10), rtol=1e-5):
-            # Return edges connecting consecutive points along the line
-            sorted_indices = np.argsort(pts[:, 0] + pts[:, 1])
-            edges = [(int(sorted_indices[i]), int(sorted_indices[i+1])) for i in range(len(sorted_indices)-1)]
-            distances = [float(np.linalg.norm(pts[a] - pts[b])) for a, b in edges]
-            return {"edges": edges, "distances": distances}
-
+            # Check if all points lie on the same line
+            x_diff = pts[:, 0] - pts[0, 0]
+            y_diff = pts[:, 1] - pts[0, 1]
+            slopes = y_diff / (x_diff + 1e-10)
+            if np.all(x_diff == 0) or np.allclose(slopes, slopes[1], rtol=1e-5):
+                # Return edges connecting consecutive points along the line
+                sorted_indices = np.argsort(pts[:, 0] + pts[:, 1])
+                line_edges: list[tuple[int, int]] = [
+                    (int(sorted_indices[i]), int(sorted_indices[i + 1]))
+                    for i in range(len(sorted_indices) - 1)
+                ]
+                distances = [
+                    float(np.linalg.norm(pts[a] - pts[b]))
+                    for a, b in line_edges
+                ]
+                return {"edges": line_edges, "distances": distances}
     try:
+        from scipy.spatial import QhullError  # noqa: PLC0415
         tri = Delaunay(pts)
-    except Exception:
+    except QhullError:
         # Fallback for any other Qhull errors - connect nearest neighbors
-        edges = []
+        fallback_edges: list[tuple[int, int]] = []
         for i in range(len(pts)):
             for j in range(i + 1, len(pts)):
-                edges.append((i, j))
-        distances = [float(np.linalg.norm(pts[a] - pts[b])) for a, b in edges]
-        return {"edges": edges, "distances": distances}
+                fallback_edges.append((i, j))
+        distances = [
+            float(np.linalg.norm(pts[a] - pts[b]))
+            for a, b in fallback_edges
+        ]
+        return {"edges": fallback_edges, "distances": distances}
 
-    edges = set()
+    edge_set: set[tuple[int, int]] = set()
     for simplex in tri.simplices:
         for i in range(3):
             for j in range(i + 1, 3):
                 a, b = int(simplex[i]), int(simplex[j])
-                edges.add((min(a, b), max(a, b)))
+                edge_set.add((min(a, b), max(a, b)))
 
-    edges = list(edges)
+    edges = list(edge_set)
     distances = [float(np.linalg.norm(pts[a] - pts[b])) for a, b in edges]
 
     return {"edges": edges, "distances": distances}
 
 
-def compute_graph_features(graph: Dict, mpp: float = 1.0) -> Dict:
+def compute_graph_features(graph: dict, mpp: float = 1.0) -> dict:
     """Summarise spatial graph properties as scalar features.
 
     Args:

@@ -10,10 +10,10 @@ Usage::
     trainer.fit(train_slides, val_slides)
 """
 
-from histocoreml.training.losses import DiceLoss, DiceBCELoss, FocalLoss, TverskyLoss
 from histocoreml.training.dataset import HistoSegDataset, build_train_dataloader
-from histocoreml.training.trainer import SegmentationTrainer
+from histocoreml.training.losses import DiceBCELoss, DiceLoss, FocalLoss, TverskyLoss
 from histocoreml.training.metrics import dice_score, iou_score, precision_recall_f1
+from histocoreml.training.trainer import SegmentationTrainer
 
 __all__ = [
     "DiceLoss", "DiceBCELoss", "FocalLoss", "TverskyLoss",

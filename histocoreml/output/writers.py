@@ -5,11 +5,10 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Any, cast
 
 import numpy as np
 
-from histocoreml.config import OutputConfig
 from histocoreml.io.base_reader import WSIMetadata
 from histocoreml.output.base_writer import BaseMaskWriter, WriteResult
 
@@ -46,14 +45,14 @@ class TiffMaskWriter(BaseMaskWriter):
             photometric="minisblack",
         )
 
-        thumbnail_path: Optional[Path] = None
+        thumbnail_path: Path | None = None
         if self._cfg.save_thumbnail:
             thumbnail_path = self._write_thumbnail(mask, stem)
 
         return WriteResult(path=out_path, shape=mask.shape[:2], format="tiff",
                            thumbnail_path=thumbnail_path)
 
-    def _write_thumbnail(self, mask: np.ndarray, stem: str) -> Optional[Path]:
+    def _write_thumbnail(self, mask: np.ndarray, stem: str) -> Path | None:
         try:
             import cv2  # noqa: PLC0415
             from PIL import Image  # noqa: PLC0415
@@ -67,7 +66,9 @@ class TiffMaskWriter(BaseMaskWriter):
         return thumb_path
 
     @staticmethod
-    def _build_resolution_tag(metadata: WSIMetadata):
+    def _build_resolution_tag(
+        metadata: WSIMetadata,
+    ) -> tuple[tuple[float, float] | None, int | None]:
         if metadata.mpp is None:
             return None, None
         ppcm = 1e4 / metadata.mpp
@@ -122,9 +123,16 @@ class ZarrMaskWriter(BaseMaskWriter):
         out_path = self._cfg.output_dir / f"{stem}_mask.zarr"
         logger.info("Writing Zarr mask → %s", out_path)
 
-        store = zarr.DirectoryStore(str(out_path))
-        z = zarr.open(store, mode="w", shape=mask.shape, dtype=np.uint8,
-                      chunks=(512, 512), compressor=zarr.Blosc(cname="lz4", clevel=5))
+        zarr_any = cast(Any, zarr)
+        store: Any = zarr_any.DirectoryStore(str(out_path))
+        z: Any = zarr_any.open(
+            store,
+            mode="w",
+            shape=mask.shape,
+            dtype=np.uint8,
+            chunks=(512, 512),
+            compressor=zarr_any.Blosc(cname="lz4", clevel=5),
+        )
         z[:] = mask
 
         # Attach spatial metadata as Zarr attributes

@@ -9,7 +9,6 @@ from __future__ import annotations
 import abc
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Optional, Tuple
 
 import numpy as np
 
@@ -24,37 +23,37 @@ class WSIMetadata:
     level_count: int
     """Total number of resolution levels in the pyramid."""
 
-    level_dimensions: Tuple[Tuple[int, int], ...]
+    level_dimensions: tuple[tuple[int, int], ...]
     """(width, height) for every pyramid level, ordered fine → coarse."""
 
-    level_downsamples: Tuple[float, ...]
+    level_downsamples: tuple[float, ...]
     """Downsample factor relative to level-0 for each pyramid level."""
 
-    mpp_x: Optional[float]
+    mpp_x: float | None
     """Microns-per-pixel in the X direction at level 0 (None if unavailable)."""
 
-    mpp_y: Optional[float]
+    mpp_y: float | None
     """Microns-per-pixel in the Y direction at level 0 (None if unavailable)."""
 
-    vendor: Optional[str]
+    vendor: str | None
     """Scanner vendor string from slide metadata (None if unavailable)."""
 
-    properties: Dict[str, str] = None  # type: ignore[assignment]
+    properties: dict[str, str] = None  # type: ignore[assignment]
     """Raw key-value properties from the slide (scanner-specific)."""
 
     @property
-    def dimensions(self) -> Tuple[int, int]:
+    def dimensions(self) -> tuple[int, int]:
         """Width × height of the highest-resolution level (level 0)."""
         return self.level_dimensions[0]
 
     @property
-    def mpp(self) -> Optional[float]:
+    def mpp(self) -> float | None:
         """Isotropic mpp estimate. Falls back to whichever axis is available."""
         if self.mpp_x is not None and self.mpp_y is not None:
             return (self.mpp_x + self.mpp_y) / 2.0
         return self.mpp_x or self.mpp_y
 
-    def best_level_for_mpp(self, target_mpp: float) -> Tuple[int, float]:
+    def best_level_for_mpp(self, target_mpp: float) -> tuple[int, float]:
         """Find the pyramid level closest to *target_mpp*.
 
         Args:
@@ -112,17 +111,17 @@ class BaseWSIReader(abc.ABC):
         return self._path
 
     @abc.abstractmethod
-    def open(self) -> "BaseWSIReader":
+    def open(self) -> BaseWSIReader:
         """Open the slide file and prepare internal state."""
 
     @abc.abstractmethod
     def close(self) -> None:
         """Release all file handles and internal resources."""
 
-    def __enter__(self) -> "BaseWSIReader":
+    def __enter__(self) -> BaseWSIReader:
         return self.open()
 
-    def __exit__(self, *_) -> None:
+    def __exit__(self, *_: object) -> None:
         self.close()
 
     @abc.abstractmethod
@@ -132,9 +131,9 @@ class BaseWSIReader(abc.ABC):
     @abc.abstractmethod
     def read_region(
         self,
-        location: Tuple[int, int],
+        location: tuple[int, int],
         level: int,
-        size: Tuple[int, int],
+        size: tuple[int, int],
     ) -> np.ndarray:
         """Read a rectangular region from the slide pyramid.
 
@@ -148,7 +147,7 @@ class BaseWSIReader(abc.ABC):
         """
 
     @abc.abstractmethod
-    def get_thumbnail(self, max_size: Tuple[int, int] = (1024, 1024)) -> np.ndarray:
+    def get_thumbnail(self, max_size: tuple[int, int] = (1024, 1024)) -> np.ndarray:
         """Return a downsampled RGB thumbnail of the entire slide.
 
         Args:
@@ -160,9 +159,9 @@ class BaseWSIReader(abc.ABC):
 
     def read_region_at_mpp(
         self,
-        location: Tuple[int, int],
+        location: tuple[int, int],
         target_mpp: float,
-        size_um: Tuple[float, float],
+        size_um: tuple[float, float],
     ) -> np.ndarray:
         """Read a region specified in physical (micron) coordinates.
 

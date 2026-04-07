@@ -26,7 +26,7 @@ class BaseSegmentationModel(abc.ABC):
         self._cfg = cfg
 
     @abc.abstractmethod
-    def load(self) -> "BaseSegmentationModel":
+    def load(self) -> BaseSegmentationModel:
         """Load model weights from disk. Returns *self* for chaining."""
 
     @abc.abstractmethod
@@ -51,8 +51,8 @@ class BaseSegmentationModel(abc.ABC):
             f"{type(self).__name__} does not support probability output."
         )
 
-    def __enter__(self) -> "BaseSegmentationModel":
+    def __enter__(self) -> BaseSegmentationModel:
         return self.load()
 
-    def __exit__(self, *_) -> None:
+    def __exit__(self, *_: object) -> None:
         pass
