@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from collections.abc import Callable
 
 
 class DiceLoss(nn.Module):
