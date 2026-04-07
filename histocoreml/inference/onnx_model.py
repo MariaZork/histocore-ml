@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import torch
@@ -35,7 +36,7 @@ class ONNXModel(BaseSegmentationModel):
 
     def __init__(self, cfg: ModelConfig) -> None:
         super().__init__(cfg)
-        self._session = None
+        self._session: Any | None = None
         self._input_name: str | None = None
 
     def load(self) -> ONNXModel:
@@ -65,6 +66,8 @@ class ONNXModel(BaseSegmentationModel):
             raise RuntimeError("Model not loaded.")
 
         np_batch = batch.cpu().numpy().astype(np.float32)
+        assert self._session is not None
+        assert self._input_name is not None
         outputs = self._session.run(None, {self._input_name: np_batch})
         logits = outputs[0]
 

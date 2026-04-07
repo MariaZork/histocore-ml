@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+from typing import Any, cast
 
 import numpy as np
 
@@ -122,9 +123,16 @@ class ZarrMaskWriter(BaseMaskWriter):
         out_path = self._cfg.output_dir / f"{stem}_mask.zarr"
         logger.info("Writing Zarr mask → %s", out_path)
 
-        store = zarr.DirectoryStore(str(out_path))
-        z = zarr.open(store, mode="w", shape=mask.shape, dtype=np.uint8,
-                      chunks=(512, 512), compressor=zarr.Blosc(cname="lz4", clevel=5))
+        zarr_any = cast(Any, zarr)
+        store: Any = zarr_any.DirectoryStore(str(out_path))
+        z: Any = zarr_any.open(
+            store,
+            mode="w",
+            shape=mask.shape,
+            dtype=np.uint8,
+            chunks=(512, 512),
+            compressor=zarr_any.Blosc(cname="lz4", clevel=5),
+        )
         z[:] = mask
 
         # Attach spatial metadata as Zarr attributes

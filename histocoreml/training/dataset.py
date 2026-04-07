@@ -19,6 +19,7 @@ Expected directory layout::
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
@@ -44,7 +45,7 @@ class HistoSegDataset(Dataset):
         self,
         image_dir: Path,
         mask_dir: Path,
-        transform: object = None,
+        transform: Callable[..., dict[str, np.ndarray]] | None = None,
         extensions: set | None = None,
     ) -> None:
         self._image_dir = Path(image_dir)
@@ -99,7 +100,7 @@ def build_train_dataloader(
     mask_dir: Path,
     batch_size: int = 8,
     num_workers: int = 4,
-    transform: object = None,
+    transform: Callable[..., dict[str, np.ndarray]] | None = None,
     shuffle: bool = True,
 ) -> DataLoader:
     """Build a DataLoader for segmentation training."""

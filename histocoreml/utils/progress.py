@@ -1,5 +1,5 @@
 """Progress bar wrapper."""
-from collections.abc import Generator
+from collections.abc import Generator, Iterable
 from contextlib import contextmanager
 
 from tqdm import tqdm
@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 @contextmanager
 def progress_bar(
-    iterable: object,
+    iterable: Iterable[object],
     total: int | None = None,
     desc: str = "",
 ) -> Generator[tqdm, None, None]:

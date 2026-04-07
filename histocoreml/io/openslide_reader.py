@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -28,7 +29,7 @@ class OpenSlideReader(BaseWSIReader):
 
     def __init__(self, path: Path) -> None:
         super().__init__(path)
-        self._slide = None  # lazy-opened in open()
+        self._slide: Any | None = None  # lazy-opened in open()
 
     def open(self) -> OpenSlideReader:
         try:
@@ -51,6 +52,7 @@ class OpenSlideReader(BaseWSIReader):
 
     def get_metadata(self) -> WSIMetadata:
         self._ensure_open()
+        assert self._slide is not None
         props = dict(self._slide.properties)
 
         mpp_x = self._parse_float(props.get("openslide.mpp-x"))
@@ -97,11 +99,13 @@ class OpenSlideReader(BaseWSIReader):
     ) -> np.ndarray:
         """Read a region and return an RGB uint8 array (H, W, 3)."""
         self._ensure_open()
+        assert self._slide is not None
         pil_img = self._slide.read_region(location, level, size)
         return np.array(pil_img.convert("RGB"), dtype=np.uint8)
 
     def get_thumbnail(self, max_size: tuple[int, int] = (1024, 1024)) -> np.ndarray:
         self._ensure_open()
+        assert self._slide is not None
         pil_thumb = self._slide.get_thumbnail(max_size)
         return np.array(pil_thumb.convert("RGB"), dtype=np.uint8)
 

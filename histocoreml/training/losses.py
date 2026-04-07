@@ -5,6 +5,7 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from collections.abc import Callable
 
 
 class DiceLoss(nn.Module):
@@ -79,7 +80,7 @@ class TverskyLoss(nn.Module):
 
 def get_loss(name: str) -> nn.Module:
     """Factory for loss functions by name."""
-    registry = {
+    registry: dict[str, Callable[[], nn.Module]] = {
         "dice":     DiceLoss,
         "bce":      lambda: nn.BCEWithLogitsLoss(),
         "dice_bce": DiceBCELoss,

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -31,8 +32,8 @@ class TifffileReader(BaseWSIReader):
 
     def __init__(self, path: Path) -> None:
         super().__init__(path)
-        self._tif = None
-        self._series = None
+        self._tif: Any | None = None
+        self._series: Any | None = None
 
     def open(self) -> TifffileReader:
         try:
@@ -56,8 +57,9 @@ class TifffileReader(BaseWSIReader):
 
     def get_metadata(self) -> WSIMetadata:
         self._ensure_open()
+        assert self._series is not None
 
-        levels = self._series.levels if self._series else [self._series]
+        levels = self._series.levels
         level_dimensions = tuple(
             (int(lv.shape[-1]), int(lv.shape[-2])) for lv in levels
         )
@@ -86,6 +88,7 @@ class TifffileReader(BaseWSIReader):
         size: tuple[int, int],
     ) -> np.ndarray:
         self._ensure_open()
+        assert self._series is not None
         lv = self._series.levels[level]
         x, y = location
         w, h = size
@@ -99,6 +102,7 @@ class TifffileReader(BaseWSIReader):
 
     def get_thumbnail(self, max_size: tuple[int, int] = (1024, 1024)) -> np.ndarray:
         self._ensure_open()
+        assert self._series is not None
         meta = self.get_metadata()
         # Use the coarsest level as thumbnail
         thumb_level = meta.level_count - 1
@@ -122,6 +126,7 @@ class TifffileReader(BaseWSIReader):
 
     def _extract_mpp(self) -> tuple[float | None, float | None]:
         """Try to extract MPP from OME-XML or TIFF resolution tags."""
+        assert self._tif is not None
         try:
             if self._tif.ome_metadata:
                 import xml.etree.ElementTree as ET  # noqa: PLC0415

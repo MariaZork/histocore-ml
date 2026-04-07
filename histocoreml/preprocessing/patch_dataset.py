@@ -16,8 +16,10 @@ Design notes
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
+import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
 
@@ -61,6 +63,7 @@ class PatchDataset(Dataset):
         normalise: bool = False,
     ) -> None:
         self._slide_path = slide_path
+        self._reader: BaseWSIReader | None = None
         self._coords = coords
         self._tiling_cfg = tiling_cfg
         self._model_patch_size = model_patch_size
@@ -112,7 +115,7 @@ def build_dataloader(
     model_patch_size: int,
     batch_size: int,
     normalise: bool = False,
-    transform: object = None,
+    transform: Callable[..., dict[str, np.ndarray]] | None = None,
 ) -> DataLoader:
     """Build a DataLoader for WSI patch inference.
 
