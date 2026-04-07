@@ -29,6 +29,10 @@ def detect_nuclei(
     import cv2  # noqa: PLC0415
     from scipy import ndimage  # noqa: PLC0415
 
+    # Check for uniform patches (all same color) - no nuclei possible
+    if np.all(patch == patch[0, 0, 0]):
+        return np.zeros(patch.shape[:2], dtype=np.int32), []
+
     # Convert to LAB and threshold the 'a' channel (red-green axis → nuclei are purple)
     lab = cv2.cvtColor(patch, cv2.COLOR_RGB2LAB)
     a_channel = lab[:, :, 1]

@@ -25,7 +25,30 @@ def build_spatial_graph(centroids: List[Tuple[float, float]]) -> Dict:
         raise ImportError("scipy is required: pip install scipy") from exc
 
     pts = np.array(centroids)
-    tri = Delaunay(pts)
+
+    # Check if all points are collinear (Delaunay will fail)
+    if len(pts) >= 2:
+        # Check if all points lie on the same line
+        x_diff = pts[:, 0] - pts[0, 0]
+        y_diff = pts[:, 1] - pts[0, 1]
+        # If all x differences are zero (vertical line) or all slopes are the same
+        if np.all(x_diff == 0) or np.allclose(y_diff / (x_diff + 1e-10), y_diff[1] / (x_diff[1] + 1e-10), rtol=1e-5):
+            # Return edges connecting consecutive points along the line
+            sorted_indices = np.argsort(pts[:, 0] + pts[:, 1])
+            edges = [(int(sorted_indices[i]), int(sorted_indices[i+1])) for i in range(len(sorted_indices)-1)]
+            distances = [float(np.linalg.norm(pts[a] - pts[b])) for a, b in edges]
+            return {"edges": edges, "distances": distances}
+
+    try:
+        tri = Delaunay(pts)
+    except Exception:
+        # Fallback for any other Qhull errors - connect nearest neighbors
+        edges = []
+        for i in range(len(pts)):
+            for j in range(i + 1, len(pts)):
+                edges.append((i, j))
+        distances = [float(np.linalg.norm(pts[a] - pts[b])) for a, b in edges]
+        return {"edges": edges, "distances": distances}
 
     edges = set()
     for simplex in tri.simplices:

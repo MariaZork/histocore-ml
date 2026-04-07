@@ -6,6 +6,10 @@ __pycache__/
 # C extensions
 *.so
 
+# Generated images and model weights
+*.png
+*.pth
+
 # Distribution / packaging
 .Python
 build/
@@ -150,6 +154,15 @@ venv.bak/
 
 # Rope project settings
 .ropeproject
+
+# JetBrains / IntelliJ
+.idea/
+
+# Visual Studio Code
+.vscode/
+
+# macOS
+.DS_Store
 
 # mkdocs documentation
 /site

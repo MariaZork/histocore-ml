@@ -1,6 +1,18 @@
-# HistoCoreML
+<div align="center">
+
+<img src="assets/banner.png" alt="HistoCoreML - Production-Ready ML Framework for Computational Histology" width="100%">
+
+# 🧬 HistoCoreML
 
 **Production-ready ML framework for computational histology.**
+
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c.svg)](https://pytorch.org/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Tests](https://github.com/MariaZork/histocore-ml/actions/workflows/tests.yml/badge.svg)](https://github.com/MariaZork/histocore-ml/actions)
+[![Code Coverage](https://codecov.io/gh/MariaZork/histocore-ml/branch/main/graph/badge.svg)](https://codecov.io/gh/MariaZork/histocore-ml)
+
+</div>
 
 HistoCoreML covers the full spectrum of computational pathology tasks in a single, coherent package:
 
@@ -233,3 +245,6 @@ pytest --cov=histocoreml --cov-report=term-missing
 ```
 
 ---
+
+
+[def]: assets/banner.png

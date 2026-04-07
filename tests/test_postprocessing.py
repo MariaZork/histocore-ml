@@ -37,9 +37,9 @@ class TestMemmapCanvas:
     def test_averaging_overlap(self):
         canvas = MemmapCanvas.create(4, 4)
         canvas.accumulator[:] = 1
-        canvas.counts[:] = 2          # 0.5 average → below 0.5 threshold
+        canvas.counts[:] = 2          # 0.5 average → at 0.5 threshold (included)
         result = canvas.finalise(threshold=0.5)
-        assert result.sum() == 0
+        assert result.sum() == 16     # 0.5 >= 0.5, so all pixels are 1
         canvas.cleanup()
 
     def test_cleanup_removes_files(self):

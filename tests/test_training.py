@@ -12,9 +12,10 @@ from histocoreml.training.metrics import dice_score, iou_score, precision_recall
 
 class TestDiceLoss:
     def test_perfect_prediction_low_loss(self):
+        # For perfect background prediction, use exact 0s with from_logits=False
         pred   = torch.zeros(2, 64, 64)
         target = torch.zeros(2, 64, 64)
-        loss   = DiceLoss()(pred, target)
+        loss   = DiceLoss(from_logits=False)(pred, target)
         assert float(loss) < 0.01
 
     def test_worst_prediction_high_loss(self):

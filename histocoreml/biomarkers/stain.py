@@ -41,7 +41,7 @@ def separate_he_channels(
     od = -np.log(img / Io)
 
     stain_inv = np.linalg.pinv(_HE_MATRIX[:2])
-    concentrations = od @ stain_inv.T
+    concentrations = od @ stain_inv
     concentrations = concentrations.clip(0)
 
     # Normalise each channel
@@ -72,7 +72,7 @@ def separate_hdab_channels(
     od = -np.log(img / Io)
 
     stain_inv = np.linalg.pinv(_HDAB_MATRIX[:2])
-    concentrations = (od @ stain_inv.T).clip(0)
+    concentrations = (od @ stain_inv).clip(0)
 
     def _norm(c):
         c_max = c.max() or 1.0
