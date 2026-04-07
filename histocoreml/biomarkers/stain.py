@@ -38,7 +38,7 @@ def separate_he_channels(
     od = -np.log(img / Io)
 
     stain_inv = np.linalg.pinv(_HE_MATRIX[:2])
-    concentrations = od @ stain_inv
+    concentrations = np.asarray(od @ stain_inv, dtype=np.float64)
     concentrations = concentrations.clip(0)
 
     # Normalise each channel
@@ -69,7 +69,7 @@ def separate_hdab_channels(
     od = -np.log(img / Io)
 
     stain_inv = np.linalg.pinv(_HDAB_MATRIX[:2])
-    concentrations = (od @ stain_inv).clip(0)
+    concentrations = np.asarray(od @ stain_inv, dtype=np.float64).clip(0)
 
     def _norm(c: np.ndarray) -> np.ndarray:
         c_max = c.max() or 1.0

@@ -73,8 +73,8 @@ class MaskAssembler:
         """
         # Scale to uint32 range for integer accumulation
         scaled = (probas * 65535).astype(np.uint32)
-        for proba_scaled, coord in zip(scaled, coords):
-            self._write_patch(proba_scaled, coord)
+        for idx, coord in enumerate(coords):
+            self._write_patch(scaled[idx], coord)
 
     def finalise(self) -> np.ndarray:
         """Average all accumulated predictions and return a binary mask.
