@@ -75,7 +75,7 @@ cloud = [
     "azure-storage-blob>=12.0.0",
 ]
 kubeflow = [
-    "kfp>=2.0.0",
+    "kfp>=2.16.0",
 ]
 onnx = ["onnxruntime>=1.15.0"]
 dev = [
