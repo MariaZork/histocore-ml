@@ -38,7 +38,7 @@ jobs:
 
     - name: 💾 Cache pip packages (Unix)
       if: runner.os != 'Windows'
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
@@ -47,7 +47,7 @@ jobs:
 
     - name: 💾 Cache pip packages (Windows)
       if: runner.os == 'Windows'
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ~\AppData\Local\pip\Cache
         key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
