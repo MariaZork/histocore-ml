@@ -90,10 +90,14 @@ jobs:
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: false
+    
+    - name: 🎨 Check formatting with Black
+      run: |
+        black histocoreml/ tests/ scripts/ --check --diff
 
     - name: 🔍 Lint with ruff
       run: |
-        ruff check histocoreml/ tests/
+        ruff check histocoreml/ tests/ scripts/
 
     - name: 📝 Type check with mypy
       run: |

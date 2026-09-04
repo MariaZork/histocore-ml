@@ -19,8 +19,8 @@ import numpy as np
 import torch
 from numpy.typing import NDArray
 
+from histocoreml.backends.base_model import BaseSegmentationModel
 from histocoreml.config import ModelConfig
-from histocoreml.inference.base_model import BaseSegmentationModel
 
 logger = logging.getLogger(__name__)
 
@@ -44,35 +44,34 @@ class ONNXModel(BaseSegmentationModel):
         try:
             import onnxruntime as ort  # noqa: PLC0415
         except ImportError as exc:
-            raise ImportError(
-                "onnxruntime is required: pip install onnxruntime"
-            ) from exc
+            raise ImportError("onnxruntime is required: pip install onnxruntime") from exc
 
         model_path = Path(self._cfg.model_path)
         if not model_path.exists():
             raise FileNotFoundError(f"ONNX model not found: {model_path}")
 
         providers = self._get_providers()
-        logger.info(
-            "Loading ONNX model from %s with providers: %s", model_path, providers
-        )
+        logger.info("Loading ONNX model from %s with providers: %s", model_path, providers)
 
         opts = ort.SessionOptions()
         opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-        self._session = ort.InferenceSession(
-            str(model_path), opts, providers=providers
-        )
+        self._session = ort.InferenceSession(str(model_path), opts, providers=providers)
         self._input_name = self._session.get_inputs()[0].name
         logger.info("ONNX model loaded successfully")
         return self
 
     def predict_batch(self, batch: torch.Tensor) -> np.ndarray:
+        """Predict binary masks ``(N, H, W)`` for a ``(N, C, H, W)`` batch in [0, 1]."""
+        probs = self.predict_proba_batch(batch)
+        return (probs >= self._cfg.threshold).astype(np.uint8)
+
+    def predict_proba_batch(self, batch: torch.Tensor) -> np.ndarray:
+        """Predict soft masks ``(N, H, W)`` with values in [0, 1]."""
         if self._session is None:
             raise RuntimeError("Model not loaded.")
+        assert self._input_name is not None
 
         np_batch: NDArray[np.float32] = batch.cpu().numpy().astype(np.float32)
-        assert self._session is not None
-        assert self._input_name is not None
         outputs = self._session.run(None, {self._input_name: np_batch})
         logits = outputs[0]
 
@@ -82,7 +81,7 @@ class ONNXModel(BaseSegmentationModel):
             logits = logits[:, 1]
 
         probs = 1.0 / (1.0 + np.exp(-logits))  # sigmoid
-        return (probs >= self._cfg.threshold).astype(np.uint8)
+        return probs.astype(np.float32)
 
     def _get_providers(self) -> list[str]:
         """Select ONNX Runtime execution providers based on config device."""

@@ -1,0 +1,159 @@
+# Configuration for HuBMAP Glomeruli Segmentation
+# UNet++ with EfficientNet-B4 backbone
+# Reads WSI TIFF files directly (on-the-fly patch extraction)
+
+experiment:
+  name: "hubmap_glomeruli_unet++"
+  output_dir: "./outputs/hubmap"
+  seed: 42
+  fold: 0
+
+data:
+  # Dataset configuration - WSI on-the-fly reading
+  name: "hubmap_wsi"
+  data_dir: "./data/hubmap-kidney-segmentation"
+  train_dir: "./data/hubmap-kidney-segmentation/train"  # Contains .tiff files
+  train_csv: "./data/hubmap-kidney-segmentation/train.csv"  # Contains id,encoding
+  test_dir: "./data/hubmap-kidney-segmentation/test"  # Test .tiff files
+  
+  # Image settings
+  patch_size: 512
+  patch_overlap: 0.5
+  in_channels: 3
+  num_classes: 2
+  
+  # Tissue filtering (background/black value thresholds)
+  tissue_threshold: 0.05  # Minimum foreground fraction
+  background_value: 230   # White background threshold
+  black_value: 10         # Black background threshold
+  
+  # Data augmentation (applied on-the-fly during training)
+  augmentation:
+    enabled: true
+    train:
+      - name: "HorizontalFlip"
+        params:
+          p: 0.5
+      - name: "VerticalFlip"
+        params:
+          p: 0.5
+      - name: "RandomRotate90"
+        params:
+          p: 0.5
+      - name: "ShiftScaleRotate"
+        params:
+          shift_limit: 0.1
+          scale_limit: 0.1
+          rotate_limit: 15
+          p: 0.5
+      - name: "RandomBrightnessContrast"
+        params:
+          brightness_limit: 0.2
+          contrast_limit: 0.2
+          p: 0.5
+    valid:
+      - name: "Normalize"
+        params:
+          mean: [0.485, 0.456, 0.406]
+          std: [0.229, 0.224, 0.225]
+  
+  # Validation split
+  val_split: 0.2
+  min_patches_per_slide: 10
+  
+  # Dataloader settings
+  batch_size: 8
+  num_workers: 4
+  pin_memory: true
+
+model:
+  # Model architecture
+  name: "unet++"
+  encoder_name: "efficientnet-b4"
+  encoder_pretrained: true
+  
+  # Decoder settings
+  decoder_channels: [256, 128, 64, 32]
+  dropout: 0.2
+  deep_supervision: false
+
+training:
+  # Training settings
+  epochs: 100
+  accumulate_grad_batches: 1
+  
+  # Optimizer
+  optimizer:
+    name: "AdamW"
+    lr: 1.0e-4
+    weight_decay: 1.0e-6
+  
+  # Scheduler
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 100
+    eta_min: 1.0e-6
+  
+  # Loss function
+  loss:
+    name: "dice_bce"
+    dice_weight: 0.5
+    bce_weight: 0.5
+  
+  # Metrics
+  metrics:
+    - "dice"
+    - "iou"
+  
+  # Early stopping
+  early_stopping:
+    enabled: true
+    patience: 15
+    monitor: "val_dice"
+    mode: "max"
+  
+  # Checkpointing
+  checkpoint:
+    save_top_k: 3
+    monitor: "val_dice"
+    mode: "max"
+    filename: "{epoch:02d}-{val_dice:.4f}"
+  
+  # Mixed precision
+  mixed_precision: true
+  
+  # Gradient clipping
+  gradient_clip_val: 1.0
+  
+  # Debug mode
+  debug: false
+  debug_samples: 100
+  
+  # Visualization interval (epochs)
+  viz_interval: 5
+
+inference:
+  # Inference settings
+  patch_size: 512
+  overlap: 0.5
+  batch_size: 4
+  tta: false
+  threshold: 0.5
+  
+  # Output settings
+  save_overlay: true
+  output_format: "tiff"
+
+logging:
+  # Logging settings
+  log_dir: "./logs"
+  log_interval: 10
+  
+  # TensorBoard
+  tensorboard: true
+  
+  # Weights & Biases
+  wandb:
+    enabled: false
+    project: "histocore-ml"
+    entity: null

@@ -2,7 +2,7 @@
 
 MPP enforcement strategy
 ------------------------
-The model expects patches at **exactly** ``model_cfg.target_mpp`` (e.g., 0.88 µm/px).
+Patches are produced at **exactly** ``target_mpp`` (e.g., 0.88 µm/px).
 
 ``best_level_for_mpp`` selects the pyramid level whose MPP is *closest* to the
 target. The ratio ``actual_mpp / target_mpp`` is stored as ``rescale_factor``
@@ -30,7 +30,10 @@ def generate_patch_coords(
     tiling_cfg: TilingConfig,
     slide_id: str = "",
 ) -> list[PatchCoord]:
-    """Compute all patch coordinates for a slide at the target resolution.
+    """Compute all patch coordinates for a slide at the model's target resolution.
+
+    Thin wrapper over :func:`generate_patch_grid` that takes the geometry from a
+    :class:`~histocoreml.config.ModelConfig`.
 
     Each :class:`PatchCoord` describes:
 
@@ -51,27 +54,61 @@ def generate_patch_coords(
     Raises:
         ValueError: If overlap >= patch_size.
     """
-    if tiling_cfg.overlap >= model_cfg.patch_size:
+    return generate_patch_grid(
+        metadata,
+        patch_size=model_cfg.patch_size,
+        target_mpp=model_cfg.target_mpp,
+        tiling_cfg=tiling_cfg,
+        slide_id=slide_id,
+    )
+
+
+def generate_patch_grid(
+    metadata: WSIMetadata,
+    patch_size: int,
+    target_mpp: float,
+    tiling_cfg: TilingConfig,
+    slide_id: str = "",
+) -> list[PatchCoord]:
+    """Compute patch coordinates from explicit geometry.
+
+    Same behaviour as :func:`generate_patch_coords` without requiring a
+    :class:`~histocoreml.config.ModelConfig` — training code tiles slides before
+    any inference model exists, so it has no model path to supply.
+
+    Args:
+        metadata:   Slide metadata (dimensions, mpp, level info).
+        patch_size: Patch side length (H = W) at *target_mpp*.
+        target_mpp: Resolution the patches should represent, in µm/px.
+        tiling_cfg: Tiling configuration (overlap).
+        slide_id:   Optional slide identifier attached to each coord.
+
+    Returns:
+        Row-major ordered list of :class:`PatchCoord` objects.
+
+    Raises:
+        ValueError: If overlap >= patch_size.
+    """
+    if tiling_cfg.overlap >= patch_size:
         raise ValueError(
-            f"patch_size ({model_cfg.patch_size}) must be larger than "
-            f"overlap ({tiling_cfg.overlap})"
+            f"patch_size ({patch_size}) must be larger than overlap ({tiling_cfg.overlap})"
         )
 
-    level, actual_mpp = metadata.best_level_for_mpp(model_cfg.target_mpp)
-    rescale: float = actual_mpp / model_cfg.target_mpp
+    level, actual_mpp = metadata.level_for_mpp(target_mpp)
+    rescale: float = actual_mpp / target_mpp
 
     logger.info(
         "MPP enforcement | target=%.4f µm/px | selected level=%d "
         "(actual=%.4f µm/px) | rescale_factor=%.4f%s",
-        model_cfg.target_mpp,
+        target_mpp,
         level,
         actual_mpp,
         rescale,
         "" if abs(rescale - 1.0) < 0.01 else " ← patch resize will be applied",
     )
 
-    read_size: int = max(1, round(model_cfg.patch_size * rescale))
-    target_stride = model_cfg.patch_size - tiling_cfg.overlap
+    read_size: int = max(1, round(patch_size * rescale))
+    target_stride = patch_size - tiling_cfg.overlap
     level_stride: int = max(1, round(target_stride * rescale))
 
     w, h = metadata.level_dimensions[level]
@@ -104,6 +141,9 @@ def generate_patch_coords(
     logger.info(
         "Generated %d patch coords (read_size=%d px at level %d, "
         "model input=%d px after rescale).",
-        len(coords), read_size, level, model_cfg.patch_size,
+        len(coords),
+        read_size,
+        level,
+        patch_size,
     )
     return coords

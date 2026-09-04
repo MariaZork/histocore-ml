@@ -29,12 +29,12 @@ test-cov:
 	pytest tests/ -v --cov=histocoreml --cov-report=html --cov-report=term
 
 lint:
-	ruff check histocoreml/ tests/ examples/
+	ruff check histocoreml/ tests/ 
 	mypy histocoreml/ --ignore-missing-imports
 
 format:
-	black histocoreml/ tests/ examples/
-	ruff check --fix histocoreml/ tests/ examples/
+	black histocoreml/ tests/ 
+	ruff check --fix histocoreml/ tests/
 
 clean:
 	rm -rf build/ dist/ *.egg-info/ .pytest_cache/ .mypy_cache/ htmlcov/

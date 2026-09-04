@@ -1,22 +1,46 @@
-log_level: INFO
+# WSI segmentation with GeoJSON output — polygon contours for QuPath / viewers
 
-model:
-  model_path: models/model_scripted.pt
+experiment:
+  name: "geojson_segmentation"
+  output_dir: "./outputs"
+  seed: 42
+
+data:
+  # Tiling geometry
   patch_size: 512
-  target_mpp: 0.88
-  device: cpu
-  batch_size: 8
-  threshold: 0.5
+  patch_overlap: 0.5      # 256 px of 512
+  target_mpp: 0.88        # 10× magnification
+  in_channels: 3
 
-tiling:
-  num_workers: 4
-  prefetch_factor: 2
-  overlap: 256
+  # Tissue filtering (background/black value thresholds)
   tissue_threshold: 0.05
   background_value: 230
   black_value: 10
-  
-output:
-  output_dir: outputs
-  output_format: geojson
+
+  # Dataloader settings
+  num_workers: 4
+  prefetch_factor: 2
+
+model:
+  # checkpoint is the only field a TorchScript (.pt) or ONNX model needs — it
+  # carries its own graph. name/encoder_name are used solely to rebuild the
+  # network when checkpoint points at a training .pth state dict, so change
+  # them to match if you swap one in.
+  name: "unet"
+  encoder_name: "resnet50"
+  checkpoint: "models/model_scripted.pt"
+
+inference:
+  patch_size: 512
+  batch_size: 8
+  threshold: 0.5
+  device: "cpu"
+
+  # Output settings
+  output_dir: "./outputs"
+  output_format: "geojson"
   save_overlay: false
+
+logging:
+  level: "INFO"
+  log_dir: "./logs"

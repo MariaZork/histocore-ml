@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -20,7 +21,7 @@ class DiceLoss(nn.Module):
     def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         if self.from_logits:
             pred = torch.sigmoid(pred)
-        pred   = pred.contiguous().view(-1)
+        pred = pred.contiguous().view(-1)
         target = target.contiguous().view(-1).float()
         intersection = (pred * target).sum()
         return 1 - (2.0 * intersection + self.smooth) / (pred.sum() + target.sum() + self.smooth)
@@ -36,7 +37,7 @@ class DiceBCELoss(nn.Module):
         self.bce_weight = bce_weight
 
     def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        bce  = F.binary_cross_entropy_with_logits(pred, target.float())
+        bce = F.binary_cross_entropy_with_logits(pred, target.float())
         dice = self.dice(pred, target)
         return self.bce_weight * bce + self.dice_weight * dice
 
@@ -50,9 +51,9 @@ class FocalLoss(nn.Module):
         self.gamma = gamma
 
     def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        bce  = F.binary_cross_entropy_with_logits(pred, target.float(), reduction="none")
+        bce = F.binary_cross_entropy_with_logits(pred, target.float(), reduction="none")
         prob = torch.sigmoid(pred)
-        p_t  = prob * target + (1 - prob) * (1 - target)
+        p_t = prob * target + (1 - prob) * (1 - target)
         loss = self.alpha * (1 - p_t) ** self.gamma * bce
         return loss.mean()
 
@@ -67,11 +68,11 @@ class TverskyLoss(nn.Module):
     def __init__(self, alpha: float = 0.3, beta: float = 0.7, smooth: float = 1.0) -> None:
         super().__init__()
         self.alpha = alpha
-        self.beta  = beta
+        self.beta = beta
         self.smooth = smooth
 
     def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        pred   = torch.sigmoid(pred).view(-1)
+        pred = torch.sigmoid(pred).view(-1)
         target = target.float().view(-1)
         tp = (pred * target).sum()
         fp = ((1 - target) * pred).sum()
@@ -79,15 +80,29 @@ class TverskyLoss(nn.Module):
         return 1 - (tp + self.smooth) / (tp + self.alpha * fp + self.beta * fn + self.smooth)
 
 
-def get_loss(name: str) -> nn.Module:
-    """Factory for loss functions by name."""
-    registry: dict[str, Callable[[], nn.Module]] = {
-        "dice":     DiceLoss,
-        "bce":      lambda: nn.BCEWithLogitsLoss(),
+def get_loss(name: str, **kwargs: Any) -> nn.Module:
+    """Factory for loss functions by name.
+
+    Args:
+        name:     Loss key: 'dice' | 'bce' | 'dice_bce' | 'focal' | 'tversky'.
+        **kwargs: Hyper-parameters forwarded to the loss constructor, e.g.
+                  ``get_loss("dice_bce", dice_weight=0.7, bce_weight=0.3)`` or
+                  ``get_loss("tversky", alpha=0.3, beta=0.7)``. Keys the loss
+                  does not accept raise :class:`TypeError`.
+
+    Returns:
+        An instantiated loss module.
+
+    Raises:
+        ValueError: If *name* is not registered.
+    """
+    registry: dict[str, Callable[..., nn.Module]] = {
+        "dice": DiceLoss,
+        "bce": nn.BCEWithLogitsLoss,
         "dice_bce": DiceBCELoss,
-        "focal":    FocalLoss,
-        "tversky":  TverskyLoss,
+        "focal": FocalLoss,
+        "tversky": TverskyLoss,
     }
     if name not in registry:
         raise ValueError(f"Unknown loss '{name}'. Available: {sorted(registry)}")
-    return registry[name]()
+    return registry[name](**kwargs)

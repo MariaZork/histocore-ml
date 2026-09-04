@@ -2,17 +2,17 @@
 
 Entry points
 ------------
-``histo-segment``  — Run the WSI segmentation pipeline
-``histo-embed``    — Extract foundation model embeddings
-``histo-extract``  — Extract biomarkers from a slide + mask
-``histo-train``    — Train a segmentation model
+``histo-segment``      — Run the WSI segmentation pipeline
+``histo-embed``        — Extract foundation model embeddings
+``histo-extract``      — Extract biomarkers from a slide + mask
+``histo-train``        — Train a segmentation model
 
 Quick usage::
 
-    histo-segment  -c configs/default.yaml   -i data/*.svs --save-overlay
-    histo-embed    -c configs/uni.yaml        -i data/*.svs -o embeddings/
-    histo-extract  -c configs/biomarker.yaml  -i data/slide.svs --mask outputs/slide_mask.npy
-    histo-train    -c configs/training.yaml   --images data/images --masks data/masks
+    histo-segment        -c configs/default.yaml   -i data/*.svs --save-overlay
+    histo-embed          -c configs/uni.yaml        -i data/*.svs -o embeddings/
+    histo-extract        -c configs/biomarker.yaml  -i data/slide.svs --mask outputs/slide_mask.npy
+    histo-train          -c configs/training.yaml   --images data/images --masks data/masks
 """
 
 from __future__ import annotations
@@ -20,23 +20,24 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+from typing import Any
 
 # ── histo-segment ─────────────────────────────────────────────────────────────
 
+
 def _segment_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="histo-segment",
-                                description="WSI segmentation pipeline.")
-    p.add_argument("-c", "--config",  type=Path, required=True, metavar="YAML")
-    p.add_argument("-i", "--input",   nargs="+", type=Path, required=True, metavar="FILE")
-    p.add_argument("--output-dir",    type=Path, default=None)
+    p = argparse.ArgumentParser(prog="histo-segment", description="WSI segmentation pipeline.")
+    p.add_argument("-c", "--config", type=Path, required=True, metavar="YAML")
+    p.add_argument("-i", "--input", nargs="+", type=Path, required=True, metavar="FILE")
+    p.add_argument("--output-dir", type=Path, default=None)
     p.add_argument(
         "--output-format",
         choices=["tiff", "npy", "rle", "zarr", "geojson"],
         default=None,
     )
-    p.add_argument("--device",        type=str, default=None)
-    p.add_argument("--batch-size",    type=int, default=None)
-    p.add_argument("--save-overlay",  action="store_true", default=None)
+    p.add_argument("--device", type=str, default=None)
+    p.add_argument("--batch-size", type=int, default=None)
+    p.add_argument("--save-overlay", action="store_true", default=None)
     p.add_argument("--overlay-alpha", type=float, default=None)
     p.add_argument("--overlay-max-edge", type=int, default=None)
     p.add_argument(
@@ -52,12 +53,19 @@ def main_segment(argv: list[str] | None = None) -> int:
 
     from dataclasses import replace  # noqa: PLC0415
 
-    from histocoreml.config import PipelineConfig  # noqa: PLC0415
-    from histocoreml.pipeline import SegmentationPipeline  # noqa: PLC0415
+    from histocoreml.config import SegmentationPipelineConfig  # noqa: PLC0415
+    from histocoreml.pipelines import SegmentationInferencePipeline  # noqa: PLC0415
 
-    cfg = PipelineConfig.from_yaml(args.config)
+    try:
+        cfg = SegmentationPipelineConfig.from_yaml(args.config)
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"[ERROR] {exc}", file=sys.stderr)
+        return 1
 
-    overrides_model, overrides_output = {}, {}
+    overrides_model: dict[str, Any] = {}
+    overrides_output: dict[str, Any] = {}
+    if args.normalise:
+        overrides_model["stain_normalise"] = True
     if args.device:
         overrides_model["device"] = args.device
     if args.batch_size:
@@ -79,21 +87,26 @@ def main_segment(argv: list[str] | None = None) -> int:
         cfg = replace(cfg, output=replace(cfg.output, **overrides_output))
 
     wsi_paths = [p for p in args.input if p.exists()]
+    # Name what was skipped: silently dropping a mistyped path looks identical
+    # to a successful run over the slides that did exist.
+    for missing in [p for p in args.input if not p.exists()]:
+        print(f"[WARN] Input not found, skipping: {missing}", file=sys.stderr)
     if not wsi_paths:
         print("[ERROR] No valid input files.", file=sys.stderr)
         return 1
 
-    pipeline = SegmentationPipeline(cfg)
+    pipeline = SegmentationInferencePipeline(cfg)
     print(f"Output format: {cfg.output.output_format}")
     results = pipeline.run(wsi_paths)
 
     success = sum(1 for r in results if r.success)
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Completed: {success}/{len(results)} slides succeeded.")
     for r in results:
         status = "✓" if r.success else "✗"
-        print(f"  {status} {r.wsi_path.name}")
-        if r.success:
+        name = r.wsi_path.name if r.wsi_path else "<unknown slide>"
+        print(f"  {status} {name}")
+        if r.success and r.write_result is not None:
             print(f"      → {r.write_result.path}  ({r.elapsed_seconds:.1f}s)")
         else:
             for err in r.errors:
@@ -104,16 +117,18 @@ def main_segment(argv: list[str] | None = None) -> int:
 
 # ── histo-embed ───────────────────────────────────────────────────────────────
 
+
 def _embed_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="histo-embed",
-                                description="Foundation model feature extraction.")
-    p.add_argument("-i", "--input",   nargs="+", type=Path, required=True)
+    p = argparse.ArgumentParser(
+        prog="histo-embed", description="Foundation model feature extraction."
+    )
+    p.add_argument("-i", "--input", nargs="+", type=Path, required=True)
     p.add_argument("-o", "--output-dir", type=Path, default=Path("embeddings"))
-    p.add_argument("--model",         default="uni", help="uni | vit | ctranspath")
-    p.add_argument("--model-path",    type=Path, default=None)
-    p.add_argument("--target-mpp",    type=float, default=0.5)
-    p.add_argument("--batch-size",    type=int, default=32)
-    p.add_argument("--device",        default="cpu")
+    p.add_argument("--model", default="uni", help="uni | vit | ctranspath")
+    p.add_argument("--model-path", type=Path, default=None)
+    p.add_argument("--target-mpp", type=float, default=0.5)
+    p.add_argument("--batch-size", type=int, default=32)
+    p.add_argument("--device", default="cpu")
     p.add_argument("--embedding-dim", type=int, default=1024)
     return p
 
@@ -122,7 +137,9 @@ def main_embed(argv: list[str] | None = None) -> int:
     args = _embed_parser().parse_args(argv)
 
     from histocoreml.config import FoundationConfig  # noqa: PLC0415
-    from histocoreml.foundation import EmbeddingPipeline, get_encoder  # noqa: PLC0415
+    from histocoreml.pipelines import (  # noqa: PLC0415
+        create_embedding_pipeline,
+    )
 
     cfg = FoundationConfig(
         model_name=args.model,
@@ -133,9 +150,8 @@ def main_embed(argv: list[str] | None = None) -> int:
         device=args.device,
     )
 
-    encoder  = get_encoder(cfg)
-    pipeline = EmbeddingPipeline(cfg, encoder)
-    results  = pipeline.run(args.input, output_dir=args.output_dir)
+    pipeline = create_embedding_pipeline(cfg)
+    results = pipeline.run(args.input, output_dir=args.output_dir)
 
     success = sum(1 for r in results if r.success)
     print(f"Embedded: {success}/{len(results)} slides.")
@@ -144,15 +160,20 @@ def main_embed(argv: list[str] | None = None) -> int:
 
 # ── histo-extract ─────────────────────────────────────────────────────────────
 
+
 def _extract_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="histo-extract",
-                                description="Biomarker extraction from WSI + mask.")
-    p.add_argument("-i", "--input",  type=Path, required=True)
-    p.add_argument("--mask",         type=Path, default=None)
+    p = argparse.ArgumentParser(
+        prog="histo-extract", description="Biomarker extraction from WSI + mask."
+    )
+    p.add_argument("-i", "--input", type=Path, required=True)
+    p.add_argument("--mask", type=Path, default=None)
     p.add_argument("-o", "--output", type=Path, default=None)
-    p.add_argument("--tasks",        nargs="+",
-                   default=["cell_density", "nuclei_morphology", "spatial_graph"])
-    p.add_argument("--target-mpp",   type=float, default=0.25)
+    p.add_argument(
+        "--tasks",
+        nargs="+",
+        default=["cell_density", "nuclei_morphology", "spatial_graph"],
+    )
+    p.add_argument("--target-mpp", type=float, default=0.25)
     return p
 
 
@@ -171,11 +192,12 @@ def main_extract(argv: list[str] | None = None) -> int:
             mask = np.load(str(args.mask))
         else:
             from PIL import Image  # noqa: PLC0415
+
             mask = (np.array(Image.open(args.mask).convert("L")) > 127).astype(np.uint8)
 
-    cfg       = BiomarkerConfig(tasks=args.tasks, target_mpp=args.target_mpp)
+    cfg = BiomarkerConfig(tasks=args.tasks, target_mpp=args.target_mpp)
     extractor = BiomarkerExtractor(cfg)
-    report    = extractor.run(args.input, mask=mask)
+    report = extractor.run(args.input, mask=mask)
 
     out = args.output or Path("biomarkers") / f"{args.input.stem}_biomarkers.json"
     report.save(out)
@@ -185,28 +207,67 @@ def main_extract(argv: list[str] | None = None) -> int:
 
 # ── histo-train ───────────────────────────────────────────────────────────────
 
+
 def _train_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="histo-train",
-                                description="Train a segmentation model.")
-    p.add_argument("--images",     type=Path, required=True, help="Training image directory.")
-    p.add_argument("--masks",      type=Path, required=True, help="Training mask directory.")
+    p = argparse.ArgumentParser(
+        prog="histo-train",
+        description=(
+            "Train a segmentation model, either from an experiment config "
+            "(tiles whole-slide images on the fly) or from directories of "
+            "pre-extracted tiles."
+        ),
+    )
+    p.add_argument(
+        "-c",
+        "--config",
+        type=Path,
+        default=None,
+        help="Experiment YAML (e.g. configs/hubmap_glomeruli.yaml). "
+        "Trains directly from WSIs; --images/--masks are then unused.",
+    )
+    p.add_argument("--images", type=Path, default=None, help="Training image directory.")
+    p.add_argument("--masks", type=Path, default=None, help="Training mask directory.")
     p.add_argument("--val-images", type=Path, default=None)
-    p.add_argument("--val-masks",  type=Path, default=None)
-    p.add_argument("--arch",       default="unet")
-    p.add_argument("--encoder",    default="resnet50")
-    p.add_argument("--loss",       default="dice_bce")
-    p.add_argument("--epochs",     type=int, default=100)
-    p.add_argument("--lr",         type=float, default=1e-4)
+    p.add_argument("--val-masks", type=Path, default=None)
+    p.add_argument("--arch", default="unet")
+    p.add_argument("--encoder", default="resnet50")
+    p.add_argument("--loss", default="dice_bce")
+    p.add_argument("--epochs", type=int, default=100)
+    p.add_argument("--lr", type=float, default=1e-4)
     p.add_argument("--batch-size", type=int, default=8)
     p.add_argument("--checkpoint-dir", type=Path, default=Path("checkpoints"))
+
+    # Config-driven options
+    p.add_argument("--debug", action="store_true", help="Smoke test on a few patches.")
+    p.add_argument("--resume", type=Path, default=None, help="Resume from this checkpoint.")
+    p.add_argument("--inference-only", action="store_true", help="Skip training (needs --config).")
+    p.add_argument(
+        "--checkpoint", type=Path, default=None, help="Checkpoint to run inference with."
+    )
     return p
 
 
 def main_train(argv: list[str] | None = None) -> int:
     args = _train_parser().parse_args(argv)
 
+    if args.config is not None:
+        return _train_from_config(args)
+
+    if args.inference_only:
+        print("[ERROR] --inference-only requires --config.", file=sys.stderr)
+        return 1
+    if args.images is None or args.masks is None:
+        print(
+            "[ERROR] Provide --config, or both --images and --masks.",
+            file=sys.stderr,
+        )
+        return 1
+
     from histocoreml.config import TrainingConfig  # noqa: PLC0415
-    from histocoreml.training import SegmentationTrainer, build_train_dataloader  # noqa: PLC0415
+    from histocoreml.training import (  # noqa: PLC0415
+        SegmentationTrainer,
+        build_train_dataloader,
+    )
 
     cfg = TrainingConfig(
         architecture=args.arch,
@@ -234,6 +295,41 @@ def main_train(argv: list[str] | None = None) -> int:
     best_dice = max(history["val_dice"]) if history["val_dice"] else 0.0
     print(f"Training complete. Best Dice: {best_dice:.4f}")
     return 0
+
+
+def _train_from_config(args: argparse.Namespace) -> int:
+    """Run the WSI training pipeline described by ``args.config``.
+
+    Tiles slides on the fly rather than reading pre-extracted tiles, so a whole
+    run — data, model, optimiser, augmentation, inference — comes from the one
+    experiment document.
+    """
+    from histocoreml.config import ExperimentConfig  # noqa: PLC0415
+    from histocoreml.pipelines import SegmentationTrainingPipeline  # noqa: PLC0415
+    from histocoreml.utils import setup_logging  # noqa: PLC0415
+
+    try:
+        cfg = ExperimentConfig.from_yaml(args.config)
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"[ERROR] {exc}", file=sys.stderr)
+        return 1
+
+    cfg.output_dir.mkdir(parents=True, exist_ok=True)
+    setup_logging(level=cfg.log_level, log_file=cfg.log_file(), force=True)
+
+    pipeline = SegmentationTrainingPipeline(
+        cfg,
+        debug=args.debug,
+        resume=args.resume,
+        checkpoint=args.checkpoint,
+    )
+    result = pipeline.run(train=not args.inference_only)
+
+    for error in result.errors:
+        print(f"[ERROR] {error}", file=sys.stderr)
+    if result.success:
+        print(f"Training complete. Best Dice: {result.best_metric:.4f}")
+    return 0 if result.success else 1
 
 
 if __name__ == "__main__":

@@ -1,27 +1,51 @@
-log_level: INFO
+# GPU-optimised WSI segmentation — larger batches and more prefetching
+# Same geometry as default.yaml; tuned for a single CUDA device
 
-model:
-  model_path:     models/model_scripted.pt
-  patch_size:     512
-  target_mpp:     0.88
-  input_channels: 3
-  device:         cuda:0
-  batch_size:     32
-  threshold:      0.5
+experiment:
+  name: "gpu_segmentation"
+  output_dir: "./outputs"
+  seed: 42
 
-tiling:
-  num_workers:      8
-  prefetch_factor:  4
-  overlap:          256
+data:
+  # Tiling geometry
+  patch_size: 512
+  patch_overlap: 0.5      # 256 px of 512
+  target_mpp: 0.88        # 10× magnification
+  in_channels: 3
+
+  # Tissue filtering (background/black value thresholds)
   tissue_threshold: 0.05
   background_value: 230
-  black_value:      10
+  black_value: 10
 
-output:
-  output_dir:       outputs
-  output_format:    tiff
-  compression:      lzw
-  save_thumbnail:   true
-  save_overlay:     true
-  overlay_alpha:    0.40
+  # Dataloader settings — more workers to keep the GPU fed
+  num_workers: 8
+  prefetch_factor: 4
+
+model:
+  # checkpoint is the only field a TorchScript (.pt) or ONNX model needs — it
+  # carries its own graph. name/encoder_name are used solely to rebuild the
+  # network when checkpoint points at a training .pth state dict, so change
+  # them to match if you swap one in.
+  name: "unet"
+  encoder_name: "resnet50"
+  checkpoint: "models/model_scripted.pt"
+
+inference:
+  patch_size: 512
+  batch_size: 32
+  threshold: 0.5
+  device: "cuda:0"
+
+  # Output settings
+  output_dir: "./outputs"
+  output_format: "tiff"
+  compression: "lzw"
+  save_thumbnail: true
+  save_overlay: true
+  overlay_alpha: 0.40
   overlay_max_edge: 4096
+
+logging:
+  level: "INFO"
+  log_dir: "./logs"

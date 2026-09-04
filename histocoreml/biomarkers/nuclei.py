@@ -36,9 +36,7 @@ def detect_nuclei(
     lab = cv2.cvtColor(patch, cv2.COLOR_RGB2LAB)
     a_channel = lab[:, :, 1]
 
-    _, binary = cv2.threshold(
-        a_channel, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
-    )
+    _, binary = cv2.threshold(a_channel, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     binary = (binary > 0).astype(np.uint8)
 
     # Morphological cleanup
@@ -93,9 +91,7 @@ def measure_nuclei_morphology(
     try:
         from skimage.measure import regionprops  # noqa: PLC0415
     except ImportError as exc:
-        raise ImportError(
-            "scikit-image is required: pip install scikit-image"
-        ) from exc
+        raise ImportError("scikit-image is required: pip install scikit-image") from exc
 
     from histocoreml.biomarkers.stain import (  # noqa: PLC0415
         separate_he_channels,
@@ -118,9 +114,7 @@ def measure_nuclei_morphology(
                 "eccentricity": float(props.eccentricity),
                 "solidity": float(props.solidity),
                 "circularity": float(circularity),
-                "mean_hematoxylin": (
-                    float(h_channel[region].mean()) if region.any() else 0.0
-                ),
+                "mean_hematoxylin": (float(h_channel[region].mean()) if region.any() else 0.0),
             }
         )
 

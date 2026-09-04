@@ -7,10 +7,13 @@ subclassing ``BaseWSIReader`` without touching any other pipeline component.
 from __future__ import annotations
 
 import abc
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -66,9 +69,7 @@ class WSIMetadata:
             ValueError: If slide mpp is unknown.
         """
         if self.mpp is None:
-            raise ValueError(
-                f"Cannot compute best level: mpp metadata missing for {self.path}"
-            )
+            raise ValueError(f"Cannot compute best level: mpp metadata missing for {self.path}")
         target_downsample = target_mpp / self.mpp
         best_level = 0
         best_diff = abs(self.level_downsamples[0] - target_downsample)
@@ -79,6 +80,30 @@ class WSIMetadata:
                 best_level = lvl
         actual_mpp = self.mpp * self.level_downsamples[best_level]
         return best_level, actual_mpp
+
+    def level_for_mpp(self, target_mpp: float) -> tuple[int, float]:
+        """Resolve the pyramid level for *target_mpp*, tolerating missing metadata.
+
+        Same as :meth:`best_level_for_mpp`, except that a slide with no MPP
+        recorded (common for public TIFF datasets) resolves to level 0 at the
+        requested resolution instead of raising. Tiling and mask assembly must
+        agree on the level, so both go through this.
+
+        Args:
+            target_mpp: Desired resolution in microns-per-pixel.
+
+        Returns:
+            Tuple of (level_index, actual_mpp_at_level).
+        """
+        try:
+            return self.best_level_for_mpp(target_mpp)
+        except ValueError:
+            logger.warning(
+                "MPP metadata missing for %s — using level 0 at target_mpp=%.4f",
+                self.path,
+                target_mpp,
+            )
+            return 0, target_mpp
 
     def magnification_at_level(self, level: int, objective_power: float = 40.0) -> float:
         """Estimate effective magnification at a pyramid level.

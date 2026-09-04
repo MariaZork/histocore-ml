@@ -13,12 +13,12 @@ from histocoreml.output.writers import (
 )
 
 _WRITER_REGISTRY: dict[str, type[BaseMaskWriter]] = {
-    "tiff":    TiffMaskWriter,
-    "tif":     TiffMaskWriter,
-    "npy":     NumpyMaskWriter,
-    "numpy":   NumpyMaskWriter,
-    "rle":     RLEMaskWriter,
-    "zarr":    ZarrMaskWriter,
+    "tiff": TiffMaskWriter,
+    "tif": TiffMaskWriter,
+    "npy": NumpyMaskWriter,
+    "numpy": NumpyMaskWriter,
+    "rle": RLEMaskWriter,
+    "zarr": ZarrMaskWriter,
     "geojson": GeoJSONMaskWriter,
 }
 
@@ -39,7 +39,6 @@ def get_writer(cfg: OutputConfig) -> BaseMaskWriter:
     cls = _WRITER_REGISTRY.get(fmt)
     if cls is None:
         raise ValueError(
-            f"Unsupported output format '{fmt}'. "
-            f"Available formats: {sorted(_WRITER_REGISTRY)}"
+            f"Unsupported output format '{fmt}'. " f"Available formats: {sorted(_WRITER_REGISTRY)}"
         )
     return cls(cfg)

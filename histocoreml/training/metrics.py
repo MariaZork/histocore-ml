@@ -23,9 +23,7 @@ def iou_score(pred: np.ndarray, target: np.ndarray, smooth: float = 1e-6) -> flo
     return (intersection + smooth) / (union + smooth)
 
 
-def precision_recall_f1(
-    pred: np.ndarray, target: np.ndarray
-) -> tuple[float, float, float]:
+def precision_recall_f1(pred: np.ndarray, target: np.ndarray) -> tuple[float, float, float]:
     """Return (precision, recall, F1) for binary masks."""
     pred_flat: NDArray[np.bool_] = pred.astype(bool).ravel()
     target_flat: NDArray[np.bool_] = target.astype(bool).ravel()
@@ -41,6 +39,7 @@ def precision_recall_f1(
 def hausdorff_distance(pred: np.ndarray, target: np.ndarray) -> float:
     """Compute 95th-percentile Hausdorff distance between two binary masks."""
     from scipy.ndimage import distance_transform_edt  # noqa: PLC0415
+
     pred_bool: NDArray[np.bool_] = pred.astype(bool)
     target_bool: NDArray[np.bool_] = target.astype(bool)
     if not pred_bool.any() or not target_bool.any():

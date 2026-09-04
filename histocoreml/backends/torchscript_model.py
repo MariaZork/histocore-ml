@@ -8,8 +8,8 @@ from pathlib import Path
 import numpy as np
 import torch
 
+from histocoreml.backends.base_model import BaseSegmentationModel
 from histocoreml.config import ModelConfig
-from histocoreml.inference.base_model import BaseSegmentationModel
 
 logger = logging.getLogger(__name__)
 

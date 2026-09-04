@@ -36,7 +36,9 @@ class BaseEncoder(abc.ABC):
     def __enter__(self) -> BaseEncoder:
         return self.load()
 
-    def __exit__(self, *_: object) -> None:
+    def __exit__(self, *_: object) -> None:  # noqa: B027
+        # Intentionally a no-op: subclasses override only if they hold
+        # resources. Not abstract, so simple backends need not implement it.
         pass
 
     @abc.abstractmethod

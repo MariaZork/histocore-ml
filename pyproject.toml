@@ -94,10 +94,11 @@ all = [
 ]
 
 [project.scripts]
-histo-segment  = "histocoreml.cli:main_segment"
-histo-train    = "histocoreml.cli:main_train"
-histo-extract  = "histocoreml.cli:main_extract"
-histo-embed    = "histocoreml.cli:main_embed"
+histo-segment      = "histocoreml.cli:main_segment"
+histo-train        = "histocoreml.cli:main_train"
+
+histo-extract      = "histocoreml.cli:main_extract"
+histo-embed        = "histocoreml.cli:main_embed"
 
 [project.urls]
 Homepage      = "https://github.com/histocoreml/histocoreml"
@@ -124,7 +125,18 @@ exclude = [
 [tool.ruff.lint]
 select = ["E", "F", "W", "N", "I", "B", "UP", "ANN", "BLE", "C4", "PLC"]
 ignore = ["ANN401"]
-per-file-ignores = {"tests/**/*.py" = ["ANN", "PLC0415"]}
+[tool.ruff.lint.per-file-ignores]
+# Tests may skip annotations, import lazily, and use fixture-style names.
+"tests/**/*.py" = ["ANN", "PLC0415", "N806", "B007", "BLE001"]
+# Macenko stain normalisation follows the notation of the original paper
+# (Io, HE, V, C, Inorm, minPhi/maxPhi). Lower-casing these to satisfy pep8-naming
+# would make the implementation harder to check against the published algorithm.
+"histocoreml/preprocessing/patch_utils.py" = ["N803", "N806"]
+"histocoreml/biomarkers/stain.py" = ["N803", "N806"]
+
+[tool.ruff.lint.pep8-naming]
+classmethod-decorators = ["classmethod"]
+ignore-names = ["F"]
 
 [tool.mypy]
 python_version = "3.10"
@@ -149,7 +161,7 @@ markers = [
 
 [tool.coverage.run]
 source = ["histocoreml"]
-omit = ["*/tests/*", "*/examples/*"]
+omit = ["*/tests/*"]
 
 [tool.coverage.report]
 exclude_lines = [

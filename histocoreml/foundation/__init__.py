@@ -9,19 +9,24 @@ Supported encoders
 
 Usage::
 
-    from histocoreml.foundation import get_encoder, EmbeddingPipeline
+    from histocoreml.foundation import get_encoder
     from histocoreml.config import FoundationConfig
     from pathlib import Path
 
-    cfg      = FoundationConfig(model_name="uni", target_mpp=0.5, batch_size=64)
-    encoder  = get_encoder(cfg)
-    pipeline = EmbeddingPipeline(cfg, encoder)
-    results  = pipeline.run([Path("slide.svs")], output_dir=Path("embeddings"))
+    cfg     = FoundationConfig(model_name="uni", target_mpp=0.5, batch_size=64)
+    encoder = get_encoder(cfg)
+
+For full embedding pipeline, use::
+
+    from histocoreml.pipelines import EmbeddingInferencePipeline, create_embedding_pipeline
 """
 
 from histocoreml.foundation.base_encoder import BaseEncoder
-from histocoreml.foundation.embedding_pipeline import EmbeddingPipeline
 from histocoreml.foundation.factory import get_encoder
 from histocoreml.foundation.vit_encoder import ViTEncoder
 
-__all__ = ["BaseEncoder", "ViTEncoder", "get_encoder", "EmbeddingPipeline"]
+__all__ = [
+    "BaseEncoder",
+    "ViTEncoder",
+    "get_encoder",
+]

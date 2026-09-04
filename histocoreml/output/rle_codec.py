@@ -72,7 +72,7 @@ def plain_rle_encode(mask: np.ndarray) -> PlainRLE:
     starts = np.concatenate(([0], change_pos))
     ends = np.concatenate((change_pos, [flat.size]))
     runs: list[tuple[int, int]] = [
-        (int(flat[s]), int(e - s)) for s, e in zip(starts, ends)
+        (int(flat[s]), int(e - s)) for s, e in zip(starts, ends, strict=True)
     ]
     return PlainRLE(shape=mask.shape, runs=runs)
 
@@ -147,9 +147,7 @@ def merge_plain_rles(
         if y1 <= y0 or x1 <= x0:
             continue
         my0, mx0 = y0 - cy, x0 - cx
-        canvas[y0:y1, x0:x1] |= patch_mask[
-            my0 : my0 + (y1 - y0), mx0 : mx0 + (x1 - x0)
-        ]
+        canvas[y0:y1, x0:x1] |= patch_mask[my0 : my0 + (y1 - y0), mx0 : mx0 + (x1 - x0)]
     return canvas
 
 
@@ -170,6 +168,57 @@ def coco_rle_from_dict(d: dict) -> CocoRLE:
     seg = d.get("segmentation", d)
     h, w = seg["size"]
     return CocoRLE(size=(h, w), counts=list(seg["counts"]))
+
+
+# ── Simple API (compatible with HuBMAP/other competitions) ────────────────────
+
+
+def rle_encode(mask: np.ndarray) -> str:
+    """Encode binary mask to RLE string (row-major, HuBMAP/Kaggle format).
+
+    Args:
+        mask: Binary mask (H, W) with values 0 or 1
+
+    Returns:
+        RLE string: "start length start length ..."
+
+    Example::
+
+        from histocoreml.output.rle_codec import rle_encode, rle_decode
+
+        rle = rle_encode(mask)  # "1 20 30 5 ..."
+        mask = rle_decode(rle, (512, 512))
+    """
+    pixels = mask.flatten()
+    pixels = np.concatenate([[0], pixels, [0]])
+    runs = np.where(pixels[1:] != pixels[:-1])[0] + 1
+    runs[1::2] -= runs[::2]
+    return " ".join(str(x) for x in runs)
+
+
+def rle_decode(mask_rle: str, shape: tuple[int, int]) -> np.ndarray:
+    """Decode RLE-encoded mask string to binary mask.
+
+    Args:
+        mask_rle: RLE string in "start length start length ..." format
+        shape: (height, width) of output mask
+
+    Returns:
+        Binary mask (H, W) with values 0 or 1
+    """
+    s = mask_rle.split()
+    starts, lengths = [np.asarray(x, dtype=int) for x in (s[0::2], s[1::2])]
+    starts -= 1
+    ends = starts + lengths
+
+    img: NDArray[np.uint8] = np.zeros(shape[0] * shape[1], dtype=np.uint8)
+    for lo, hi in zip(starts, ends, strict=True):
+        img[lo:hi] = 1
+
+    # HuBMAP RLE encodes pixels in column-major (Fortran) order:
+    # pixels run top→bottom first, then left→right.
+    # reshape with order="F" reconstructs (height, width) correctly.
+    return img.reshape(shape, order="F")
 
 
 # ── Validation ────────────────────────────────────────────────────────────────

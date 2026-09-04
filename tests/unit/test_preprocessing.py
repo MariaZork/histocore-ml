@@ -25,15 +25,17 @@ class TestRescalePatch:
 
     def test_downsample(self):
         patch = make_rgb_patch(128, 128)
-        coord = PatchCoord(x=0, y=0, level=0, patch_size=128,
-                           col_idx=0, row_idx=0, rescale_factor=2.0)
+        coord = PatchCoord(
+            x=0, y=0, level=0, patch_size=128, col_idx=0, row_idx=0, rescale_factor=2.0
+        )
         result = rescale_patch(patch, coord, model_patch_size=64)
         assert result.shape == (64, 64, 3)
 
     def test_upsample(self):
         patch = make_rgb_patch(32, 32)
-        coord = PatchCoord(x=0, y=0, level=0, patch_size=32,
-                           col_idx=0, row_idx=0, rescale_factor=0.5)
+        coord = PatchCoord(
+            x=0, y=0, level=0, patch_size=32, col_idx=0, row_idx=0, rescale_factor=0.5
+        )
         result = rescale_patch(patch, coord, model_patch_size=64)
         assert result.shape == (64, 64, 3)
 
@@ -49,7 +51,7 @@ class TestPadToSize:
         result = pad_to_size(patch, 64)
         assert result.shape == (64, 64, 3)
         np.testing.assert_array_equal(result[:32, :48], patch)
-        assert result[32:, :].sum() == 0   # padded region is zero
+        assert result[32:, :].sum() == 0  # padded region is zero
 
 
 class TestIsTissue:
@@ -72,9 +74,10 @@ class TestIsTissue:
 class TestTissueMask:
     def test_shape(self):
         from histocoreml.config import TilingConfig
-        cfg   = TilingConfig()
+
+        cfg = TilingConfig()
         patch = make_rgb_patch(32, 32)
-        mask  = tissue_mask(patch, cfg)
+        mask = tissue_mask(patch, cfg)
         assert mask.shape == (32, 32)
         assert mask.dtype == bool
 

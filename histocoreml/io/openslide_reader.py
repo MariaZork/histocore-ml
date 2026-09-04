@@ -61,9 +61,7 @@ class OpenSlideReader(BaseWSIReader):
         metadata = WSIMetadata(
             path=self._path,
             level_count=self._slide.level_count,
-            level_dimensions=tuple(
-                tuple(d) for d in self._slide.level_dimensions
-            ),
+            level_dimensions=tuple(tuple(d) for d in self._slide.level_dimensions),
             level_downsamples=tuple(self._slide.level_downsamples),
             mpp_x=mpp_x,
             mpp_y=mpp_y,
@@ -88,7 +86,7 @@ class OpenSlideReader(BaseWSIReader):
 
         if metadata.mpp is None:
             logger.warning(
-                "Slide %s has no MPP metadata — target_mpp enforcement will fail.",
+                "Slide %s has no MPP metadata — target_mpp enforcement won't be applied.",
                 self._path.name,
             )
         return metadata

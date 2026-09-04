@@ -3,17 +3,140 @@
 All configs are frozen dataclasses and can be loaded from YAML::
 
     from histocoreml.config import PipelineConfig
-    cfg = PipelineConfig.from_yaml("configs/default.yaml")
+    cfg = SegmentationPipelineConfig.from_yaml("configs/default.yaml")
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any, Protocol, TypeVar, runtime_checkable
 
 import yaml
 
+# ── Base Pipeline Config ─────────────────────────────────────────────────────
+
+
+@dataclass
+class PipelineConfig:
+    """Base configuration for all pipelines."""
+
+    log_level: str = "INFO"
+    output_dir: Path = Path("outputs")
+    num_workers: int = 4
+    device: str = "auto"
+
+    def __post_init__(self) -> None:
+        if isinstance(self.output_dir, str):
+            self.output_dir = Path(self.output_dir)
+
+
+# ── Pipeline Results ─────────────────────────────────────────────────────────
+
+
+@dataclass
+class PipelineResult:
+    """Base result for all pipeline operations."""
+
+    wsi_path: Path | None = None
+    elapsed_seconds: float = 0.0
+    errors: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def success(self) -> bool:
+        return len(self.errors) == 0
+
+
+@dataclass
+class InferenceResult(PipelineResult):
+    """Base result for inference pipelines."""
+
+    patch_count: int = 0
+    model_name: str = ""
+
+
+@dataclass
+class SegmentationInferenceResult(InferenceResult):
+    """Result for segmentation inference."""
+
+    write_result: Any | None = None  # WriteResult from output module
+    mask_path: Path | None = None
+
+
+@dataclass
+class EmbeddingInferenceResult(InferenceResult):
+    """Result for embedding/feature extraction inference."""
+
+    embeddings: Any = None  # np.ndarray (N_patches, embedding_dim)
+    coords: list = field(default_factory=list)
+
+    def save(self, output_dir: Path, stem: str | None = None) -> Path:
+        """Save embeddings to a .npz file."""
+        import numpy as np  # noqa: PLC0415
+
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        if stem is None and self.wsi_path:
+            stem = self.wsi_path.stem
+        elif stem is None:
+            stem = "embeddings"
+
+        out = output_dir / f"{stem}_embeddings.npz"
+
+        if self.embeddings is not None and len(self.coords) > 0:
+            xs = np.array([c.x for c in self.coords])
+            ys = np.array([c.y for c in self.coords])
+            np.savez_compressed(
+                str(out),
+                embeddings=self.embeddings,
+                coord_x=xs,
+                coord_y=ys,
+            )
+        else:
+            np.savez_compressed(
+                str(out),
+                embeddings=np.empty((0, 0), dtype=np.float32),
+                coord_x=np.array([]),
+                coord_y=np.array([]),
+            )
+
+        return out
+
+
+@dataclass
+class TrainingResult(PipelineResult):
+    """Base result for training pipelines."""
+
+    epochs_trained: int = 0
+    best_metric: float = 0.0
+    final_loss: float = 0.0
+    history: dict[str, list] = field(default_factory=dict)
+    checkpoint_path: Path | None = None
+
+
+@runtime_checkable
+class PipelineConfigLike(Protocol):
+    """The whole contract :class:`BasePipeline` needs from a configuration.
+
+    Bound structurally rather than to :class:`PipelineConfig` so the frozen
+    aggregate configs (:class:`SegmentationPipelineConfig`) qualify too — they
+    cannot inherit from it, because a frozen dataclass may not subclass a
+    non-frozen one.
+    """
+
+    @property
+    def log_level(self) -> str:  # pragma: no cover - structural declaration
+        ...
+
+
+# Type variables for generic pipeline base classes
+C = TypeVar("C", bound=PipelineConfigLike)
+R = TypeVar("R", bound=PipelineResult)
+
+
 # ── Model / Inference ────────────────────────────────────────────────────────
+
 
 @dataclass(frozen=True)
 class ModelConfig:
@@ -43,8 +166,45 @@ class ModelConfig:
     num_classes: int = 1
     """Number of output classes (1 = binary segmentation)."""
 
+    backend: str = "auto"
+    """Inference backend: 'auto' | 'torchscript' | 'onnx' | 'checkpoint'.
+
+    ``auto`` picks from the file suffix: ``.pt``/``.ts`` → TorchScript,
+    ``.onnx`` → ONNX Runtime, ``.pth``/``.ckpt`` → a training checkpoint
+    reloaded into ``architecture``/``encoder``.
+    """
+
+    architecture: str | None = None
+    """Architecture to rebuild for the 'checkpoint' backend, e.g. 'unet++'.
+
+    Ignored by TorchScript and ONNX, which carry their own graph. When None,
+    the value stored in the checkpoint's own config is used.
+    """
+
+    encoder: str | None = None
+    """Encoder backbone to rebuild for the 'checkpoint' backend, e.g. 'resnet50'."""
+
+    stain_normalise: bool = False
+    """Apply Macenko H&E normalisation to each patch before inference.
+
+    A property of the *model*, not of the tiling: whether patches must be
+    stain-normalised is fixed by how the model was trained. Tiling settings
+    (overlap, tissue thresholds, workers) can change freely without affecting it.
+    """
+
     def __post_init__(self) -> None:
         object.__setattr__(self, "model_path", Path(self.model_path))
+
+        if self.device == "auto":
+            import torch  # noqa: PLC0415
+
+            if torch.cuda.is_available():
+                resolved = "cuda"
+            elif torch.backends.mps.is_available():
+                resolved = "mps"
+            else:
+                resolved = "cpu"
+            object.__setattr__(self, "device", resolved)
 
 
 @dataclass(frozen=True)
@@ -71,6 +231,7 @@ class TilingConfig:
 
 
 # ── Output ───────────────────────────────────────────────────────────────────
+
 
 @dataclass(frozen=True)
 class OutputConfig:
@@ -109,6 +270,7 @@ class OutputConfig:
 
 # ── Foundation Model ─────────────────────────────────────────────────────────
 
+
 @dataclass(frozen=True)
 class FoundationConfig:
     """Configuration for foundation model feature extraction."""
@@ -142,7 +304,94 @@ class FoundationConfig:
             object.__setattr__(self, "model_path", Path(self.model_path))
 
 
+# ── Trainer State & Config ───────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class TrainingState:
+    """Immutable training state snapshot.
+
+    Attributes:
+        epoch: Current epoch number (1-indexed)
+        global_step: Total number of optimization steps
+        best_metric: Best validation metric achieved so far
+        patience_counter: Number of epochs without improvement
+        history: Dictionary of training history
+        is_training: Whether currently in training phase
+    """
+
+    epoch: int = 0
+    global_step: int = 0
+    best_metric: float = 0.0
+    patience_counter: int = 0
+    history: dict[str, list[float]] = field(default_factory=dict)
+    is_training: bool = False
+
+    def replace(self, **changes: Any) -> TrainingState:
+        """Create a new TrainingState with updated fields."""
+        from dataclasses import replace  # noqa: PLC0415
+
+        return replace(self, **changes)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert state to dictionary for serialization."""
+        return {
+            "epoch": self.epoch,
+            "global_step": self.global_step,
+            "best_metric": self.best_metric,
+            "patience_counter": self.patience_counter,
+            "history": self.history,
+        }
+
+
+@dataclass(frozen=True)
+class TrainerConfig:
+    """Base configuration for all trainers.
+
+    Attributes:
+        output_dir: Directory for checkpoints and logs
+        checkpoint_dir: Where checkpoints go. Defaults to ``output_dir/checkpoints``.
+        experiment_name: Name of the experiment
+        seed: Random seed for reproducibility
+        device: Device to use (auto, cuda, cpu, mps)
+        mixed_precision: Whether to use automatic mixed precision
+        log_level: Logging level
+    """
+
+    output_dir: Path = Path("./outputs")
+    checkpoint_dir: Path | None = None
+    experiment_name: str = "experiment"
+    seed: int = 42
+    device: str = "auto"
+    mixed_precision: bool = True
+    log_level: str = "INFO"
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "output_dir", Path(self.output_dir))
+        object.__setattr__(
+            self,
+            "checkpoint_dir",
+            Path(self.checkpoint_dir) if self.checkpoint_dir else self.output_dir / "checkpoints",
+        )
+
+        # Auto-select device
+        if self.device == "auto":
+            import torch  # noqa: PLC0415
+
+            if torch.cuda.is_available():
+                object.__setattr__(self, "device", "cuda")
+            elif torch.backends.mps.is_available():
+                object.__setattr__(self, "device", "mps")
+            else:
+                object.__setattr__(self, "device", "cpu")
+
+
+# Type variable for trainer configs
+T = TypeVar("T", bound=TrainerConfig)
+
+
 # ── Training ─────────────────────────────────────────────────────────────────
+
 
 @dataclass(frozen=True)
 class TrainingConfig:
@@ -187,6 +436,9 @@ class TrainingConfig:
     num_workers: int = 4
     """DataLoader workers."""
 
+    device: str = "auto"
+    """Device: 'auto', 'cpu', 'cuda', 'mps'."""
+
     mixed_precision: bool = True
     """Use automatic mixed precision (AMP)."""
 
@@ -204,6 +456,7 @@ class TrainingConfig:
 
 
 # ── Biomarker ────────────────────────────────────────────────────────────────
+
 
 @dataclass(frozen=True)
 class BiomarkerConfig:
@@ -242,13 +495,17 @@ class BiomarkerConfig:
             object.__setattr__(self, "nuclei_model_path", Path(self.nuclei_model_path))
 
 
-# ── Top-level ────────────────────────────────────────────────────────────────
+# ── Segmentation Pipeline Config ─────────────────────────────────────────────
+
 
 @dataclass(frozen=True)
-class PipelineConfig:
-    """Top-level pipeline configuration aggregating all sub-configs."""
+class SegmentationPipelineConfig:
+    """Top-level pipeline configuration for segmentation inference.
 
-    model:  ModelConfig
+    Aggregates model, tiling, and output sub-configs.
+    """
+
+    model: ModelConfig
     tiling: TilingConfig
     output: OutputConfig
 
@@ -256,17 +513,23 @@ class PipelineConfig:
     """Python logging level: ``DEBUG`` | ``INFO`` | ``WARNING`` | ``ERROR``."""
 
     @classmethod
-    def from_yaml(cls, path: Path | str) -> PipelineConfig:
-        """Load a :class:`PipelineConfig` from a YAML file.
+    def from_yaml(cls, path: Path | str) -> SegmentationPipelineConfig:
+        """Load a :class:`SegmentationPipelineConfig` from a YAML file.
 
         Args:
             path: Path to the YAML configuration file.
 
         Returns:
-            Fully validated :class:`PipelineConfig`.
+            Fully validated :class:`SegmentationPipelineConfig`.
+
+        Accepts both config schemas: a flat ``model``/``tiling``/``output``
+        document, or a nested experiment document, which is converted through
+        :meth:`~histocoreml.config.experiment.ExperimentConfig.segmentation_config`.
 
         Raises:
             FileNotFoundError: If *path* does not exist.
+            ValueError: If *path* has neither an ``experiment`` nor a ``model``
+                section, or names no weights.
         """
         path = Path(path)
         if not path.exists():
@@ -274,6 +537,17 @@ class PipelineConfig:
 
         with path.open() as fh:
             raw: dict = yaml.safe_load(fh) or {}
+
+        # Two schemas live in configs/: the nested experiment documents and the
+        # flat model/tiling/output form. Accept either so one config file can
+        # drive both training and histo-segment.
+        if "experiment" in raw:
+            from histocoreml.config.experiment import ExperimentConfig  # noqa: PLC0415
+
+            return ExperimentConfig.from_yaml(path).segmentation_config()
+
+        if "model" not in raw:
+            raise ValueError(f"{path} is missing the required 'model' section.")
 
         return cls(
             model=ModelConfig(**raw["model"]),
@@ -283,12 +557,33 @@ class PipelineConfig:
         )
 
 
+# Imported last: experiment.py depends on the dataclasses defined above.
+from histocoreml.config.experiment import ExperimentConfig  # noqa: E402
+
 __all__ = [
+    # Base classes
+    "PipelineConfig",
+    "PipelineConfigLike",
+    "C",
+    "R",
+    "T",
+    # Results
+    "PipelineResult",
+    "InferenceResult",
+    "SegmentationInferenceResult",
+    "EmbeddingInferenceResult",
+    "TrainingResult",
+    # Trainer classes
+    "TrainingState",
+    "TrainerConfig",
+    "T",
+    # Configs
     "ModelConfig",
     "TilingConfig",
     "OutputConfig",
     "FoundationConfig",
     "TrainingConfig",
     "BiomarkerConfig",
-    "PipelineConfig",
+    "SegmentationPipelineConfig",
+    "ExperimentConfig",
 ]

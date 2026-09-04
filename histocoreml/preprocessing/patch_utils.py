@@ -72,6 +72,27 @@ def rescale_patch(
 # ── Padding ───────────────────────────────────────────────────────────────────
 
 
+def ensure_rgb(patch: np.ndarray) -> np.ndarray:
+    """Coerce a patch to 3-channel uint8 RGB.
+
+    Readers normally hand back ``(H, W, 3)``, but grayscale slides and RGBA
+    sources slip through as ``(H, W)`` and ``(H, W, 4)``.
+
+    Args:
+        patch: Array of shape ``(H, W)``, ``(H, W, 3)`` or ``(H, W, 4)``.
+
+    Returns:
+        uint8 array of shape ``(H, W, 3)``.
+    """
+    if patch.ndim == 2:
+        patch = np.stack([patch] * 3, axis=-1)
+    elif patch.shape[-1] == 4:
+        patch = patch[:, :, :3]
+    elif patch.shape[-1] == 1:
+        patch = np.repeat(patch, 3, axis=-1)
+    return patch.astype(np.uint8, copy=False)
+
+
 def pad_to_size(patch: np.ndarray, target_size: int) -> np.ndarray:
     """Zero-pad an edge patch smaller than *target_size*.
 
@@ -107,9 +128,7 @@ def is_tissue(patch: np.ndarray, cfg: TilingConfig) -> bool:
         ``True`` if the foreground pixel fraction ≥ ``cfg.tissue_threshold``.
     """
     gray = patch.mean(axis=-1)
-    foreground_pixels = int(
-        ((gray < cfg.background_value) & (gray > cfg.black_value)).sum()
-    )
+    foreground_pixels = int(((gray < cfg.background_value) & (gray > cfg.black_value)).sum())
     total_pixels = gray.size
     required_pixels = int(cfg.tissue_threshold * total_pixels)
     return foreground_pixels >= required_pixels
@@ -168,11 +187,7 @@ def macenko_normalise(
     Returns:
         Normalised uint8 RGB array ``(H, W, 3)``.
     """
-    HE_ref = (
-        reference_stain_matrix
-        if reference_stain_matrix is not None
-        else _MACENKO_REFERENCE
-    )
+    HE_ref = reference_stain_matrix if reference_stain_matrix is not None else _MACENKO_REFERENCE
     maxC_ref = reference_max_c if reference_max_c is not None else _MACENKO_MAX_C
 
     h, w = patch.shape[:2]
@@ -218,3 +233,66 @@ def macenko_normalise(
     Inorm = Io * np.exp(-HE_ref @ C2)
     Inorm = np.clip(Inorm.T, 0, 255).astype(np.uint8)
     return Inorm.reshape(h, w, 3)
+
+
+# ── Tissue-based coordinate filtering ─────────────────────────────────────────
+
+
+def filter_coords_by_tissue(
+    coords: list[PatchCoord],
+    thumbnail: NDArray[np.uint8],
+    level0_dimensions: tuple[int, int],
+    cfg: TilingConfig,
+) -> list[PatchCoord]:
+    """Keep only the coords whose region on a slide thumbnail contains tissue.
+
+    Testing tissue on a downsampled thumbnail costs one read per slide instead
+    of one read per patch, which is what makes indexing a whole training set
+    practical. Precision is limited by the thumbnail scale, so it is a coarse
+    pre-filter, not a substitute for per-patch checks during inference.
+
+    Args:
+        coords:            Coords from
+                           :func:`~histocoreml.preprocessing.grid_generator.generate_patch_coords`,
+                           with ``x``/``y`` in level-0 pixel space.
+        thumbnail:         uint8 RGB ``(H, W, 3)`` overview of the whole slide,
+                           e.g. ``reader.get_thumbnail((2048, 2048))``.
+        level0_dimensions: ``(width, height)`` of level 0, i.e. ``metadata.dimensions``.
+        cfg:               Tiling configuration supplying the tissue thresholds.
+
+    Returns:
+        The subset of *coords* that pass :func:`is_tissue`, in input order.
+    """
+    if thumbnail.size == 0 or not coords:
+        return []
+
+    thumb_h, thumb_w = thumbnail.shape[:2]
+    level0_w, level0_h = level0_dimensions
+    if level0_w <= 0 or level0_h <= 0:
+        return []
+
+    scale_x = thumb_w / level0_w
+    scale_y = thumb_h / level0_h
+
+    kept: list[PatchCoord] = []
+    for coord in coords:
+        # A coord's patch_size is in *level* pixels; convert to level-0 extent.
+        extent = coord.patch_size * coord.rescale_factor
+
+        x0 = int(coord.x * scale_x)
+        y0 = int(coord.y * scale_y)
+        x1 = min(int((coord.x + extent) * scale_x), thumb_w)
+        y1 = min(int((coord.y + extent) * scale_y), thumb_h)
+
+        # Guard against patches that collapse to nothing at thumbnail scale.
+        x1 = max(x1, x0 + 1)
+        y1 = max(y1, y0 + 1)
+        if x0 >= thumb_w or y0 >= thumb_h:
+            continue
+
+        region = thumbnail[y0:y1, x0:x1]
+        if region.size and is_tissue(region, cfg):
+            kept.append(coord)
+
+    logger.info("Tissue filter kept %d / %d patch coords", len(kept), len(coords))
+    return kept

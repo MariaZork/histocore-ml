@@ -20,11 +20,11 @@ logger = logging.getLogger(__name__)
 
 # ImageNet statistics used by most ViT models
 _IMAGENET_MEAN = (0.485, 0.456, 0.406)
-_IMAGENET_STD  = (0.229, 0.224, 0.225)
+_IMAGENET_STD = (0.229, 0.224, 0.225)
 
 # UNI-specific mean/std (trained on pathology data)
 _UNI_MEAN = (0.70322989, 0.53606487, 0.66096631)
-_UNI_STD  = (0.21716536, 0.26081574, 0.20723780)
+_UNI_STD = (0.21716536, 0.26081574, 0.20723780)
 
 
 class ViTEncoder(BaseEncoder):
@@ -74,7 +74,7 @@ class ViTEncoder(BaseEncoder):
         self._model = timm.create_model(
             self._timm_name,
             pretrained=self._cfg.model_path is None,
-            num_classes=0,   # remove classification head → returns embeddings
+            num_classes=0,  # remove classification head → returns embeddings
         )
 
         if self._cfg.model_path is not None:
@@ -109,7 +109,7 @@ class ViTEncoder(BaseEncoder):
 
         # Apply normalisation on-device
         mean = torch.tensor(self._mean, device=self._device).view(1, 3, 1, 1)
-        std  = torch.tensor(self._std,  device=self._device).view(1, 3, 1, 1)
+        std = torch.tensor(self._std, device=self._device).view(1, 3, 1, 1)
         x = (batch.to(self._device) - mean) / std
 
         out = self._model(x)
@@ -127,10 +127,12 @@ class ViTEncoder(BaseEncoder):
         except ImportError as exc:
             raise ImportError("torchvision is required.") from exc
 
-        return transforms.Compose([
-            transforms.Resize((self._cfg.patch_size, self._cfg.patch_size)),
-            transforms.ToTensor(),
-        ])
+        return transforms.Compose(
+            [
+                transforms.Resize((self._cfg.patch_size, self._cfg.patch_size)),
+                transforms.ToTensor(),
+            ]
+        )
 
 
 class UNIEncoder(ViTEncoder):

@@ -87,7 +87,7 @@ class PatchDataset(Dataset):
         return len(self._coords)
 
     def __getitem__(self, idx: int) -> dict | None:
-        coord  = self._coords[idx]
+        coord = self._coords[idx]
         reader = self._get_reader()
 
         patch = reader.read_region(

@@ -25,7 +25,7 @@ from histocoreml.output.rle_codec import (
 logger = logging.getLogger(__name__)
 
 _PLAIN = "plain"
-_COCO  = "coco"
+_COCO = "coco"
 _VALID_SUBFORMATS = {_PLAIN, _COCO}
 
 
@@ -36,8 +36,7 @@ class RLEMaskWriter(BaseMaskWriter):
         subformat = getattr(self._cfg, "rle_subformat", _PLAIN).lower()
         if subformat not in _VALID_SUBFORMATS:
             raise ValueError(
-                f"Unknown rle_subformat '{subformat}'. "
-                f"Choose from: {sorted(_VALID_SUBFORMATS)}"
+                f"Unknown rle_subformat '{subformat}'. " f"Choose from: {sorted(_VALID_SUBFORMATS)}"
             )
 
         out_path = self._cfg.output_dir / f"{stem}_mask.json"
@@ -47,14 +46,20 @@ class RLEMaskWriter(BaseMaskWriter):
         else:
             payload, run_count, ratio = self._build_plain_payload(mask, metadata, stem)
 
-        logger.info("Writing RLE mask (%s) → %s  [runs=%d, ratio=%.1f×]",
-                    subformat, out_path, run_count, ratio)
+        logger.info(
+            "Writing RLE mask (%s) → %s  [runs=%d, ratio=%.1f×]",
+            subformat,
+            out_path,
+            run_count,
+            ratio,
+        )
 
         with out_path.open("w") as fh:
             json.dump(payload, fh, separators=(",", ":"))
 
         return WriteResult(
-            path=out_path, shape=tuple(mask.shape[:2]),
+            path=out_path,
+            shape=tuple(mask.shape[:2]),
             format=f"rle_{subformat}",
             metadata={"run_count": run_count, "compression_ratio": ratio},
         )

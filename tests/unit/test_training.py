@@ -13,47 +13,47 @@ from histocoreml.training.metrics import dice_score, iou_score, precision_recall
 class TestDiceLoss:
     def test_perfect_prediction_low_loss(self):
         # For perfect background prediction, use exact 0s with from_logits=False
-        pred   = torch.zeros(2, 64, 64)
+        pred = torch.zeros(2, 64, 64)
         target = torch.zeros(2, 64, 64)
-        loss   = DiceLoss(from_logits=False)(pred, target)
+        loss = DiceLoss(from_logits=False)(pred, target)
         assert float(loss) < 0.01
 
     def test_worst_prediction_high_loss(self):
-        pred   = torch.ones(2, 64, 64) * 10
+        pred = torch.ones(2, 64, 64) * 10
         target = torch.zeros(2, 64, 64)
-        loss   = DiceLoss()(pred, target)
+        loss = DiceLoss()(pred, target)
         assert float(loss) > 0.9
 
     def test_output_scalar(self):
-        pred   = torch.randn(4, 32, 32)
+        pred = torch.randn(4, 32, 32)
         target = (torch.rand(4, 32, 32) > 0.5).float()
-        loss   = DiceLoss()(pred, target)
+        loss = DiceLoss()(pred, target)
         assert loss.ndim == 0
 
 
 class TestDiceBCELoss:
     def test_runs(self):
-        pred   = torch.randn(2, 32, 32)
+        pred = torch.randn(2, 32, 32)
         target = (torch.rand(2, 32, 32) > 0.5).float()
-        loss   = DiceBCELoss()(pred, target)
+        loss = DiceBCELoss()(pred, target)
         assert float(loss) > 0
 
 
 class TestFocalLoss:
     def test_runs(self):
-        pred   = torch.randn(2, 32, 32)
+        pred = torch.randn(2, 32, 32)
         target = (torch.rand(2, 32, 32) > 0.5).float()
-        loss   = FocalLoss()(pred, target)
+        loss = FocalLoss()(pred, target)
         assert float(loss) >= 0
 
 
 class TestTverskyLoss:
     def test_recall_weighted(self):
         # High beta → penalise FN more → loss should be > symmetric Dice
-        pred   = torch.zeros(1, 16, 16)        # predict nothing
-        target = torch.ones(1, 16, 16).float() # all foreground
+        pred = torch.zeros(1, 16, 16)  # predict nothing
+        target = torch.ones(1, 16, 16).float()  # all foreground
         tversky = TverskyLoss(alpha=0.1, beta=0.9)(pred, target)
-        dice    = DiceLoss()(pred, target)
+        dice = DiceLoss()(pred, target)
         assert float(tversky) > float(dice) * 0.8
 
 

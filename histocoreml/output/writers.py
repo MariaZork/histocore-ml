@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 # ── TIFF ──────────────────────────────────────────────────────────────────────
 
+
 class TiffMaskWriter(BaseMaskWriter):
     """Write the mask as a tiled, spatially-referenced GeoTIFF.
 
@@ -49,8 +50,9 @@ class TiffMaskWriter(BaseMaskWriter):
         if self._cfg.save_thumbnail:
             thumbnail_path = self._write_thumbnail(mask, stem)
 
-        return WriteResult(path=out_path, shape=mask.shape[:2], format="tiff",
-                           thumbnail_path=thumbnail_path)
+        return WriteResult(
+            path=out_path, shape=mask.shape[:2], format="tiff", thumbnail_path=thumbnail_path
+        )
 
     def _write_thumbnail(self, mask: np.ndarray, stem: str) -> Path | None:
         try:
@@ -60,8 +62,7 @@ class TiffMaskWriter(BaseMaskWriter):
             logger.warning("opencv / Pillow not available; skipping thumbnail.")
             return None
         thumb_path = self._cfg.output_dir / f"{stem}_thumbnail.png"
-        small = cv2.resize(mask.astype(np.uint8) * 255, (512, 512),
-                           interpolation=cv2.INTER_NEAREST)
+        small = cv2.resize(mask.astype(np.uint8) * 255, (512, 512), interpolation=cv2.INTER_NEAREST)
         Image.fromarray(small).save(str(thumb_path))
         return thumb_path
 
@@ -80,6 +81,7 @@ class TiffMaskWriter(BaseMaskWriter):
             return compression
         try:
             import imagecodecs  # noqa: F401,PLC0415
+
             return compression
         except ImportError:
             logger.warning("imagecodecs not available; falling back to deflate.")
@@ -87,6 +89,7 @@ class TiffMaskWriter(BaseMaskWriter):
 
 
 # ── NumPy ─────────────────────────────────────────────────────────────────────
+
 
 class NumpyMaskWriter(BaseMaskWriter):
     """Write the mask as a NumPy ``.npy`` binary file."""
@@ -99,6 +102,7 @@ class NumpyMaskWriter(BaseMaskWriter):
 
 
 # ── Zarr ──────────────────────────────────────────────────────────────────────
+
 
 class ZarrMaskWriter(BaseMaskWriter):
     """Write the mask as a chunked Zarr array.
@@ -145,6 +149,7 @@ class ZarrMaskWriter(BaseMaskWriter):
 
 # ── GeoJSON ───────────────────────────────────────────────────────────────────
 
+
 class GeoJSONMaskWriter(BaseMaskWriter):
     """Export segmentation contours as GeoJSON polygons.
 
@@ -182,11 +187,13 @@ class GeoJSONMaskWriter(BaseMaskWriter):
             if not isinstance(coords_um[0], list):
                 coords_um = [coords_um]
             coords_um.append(coords_um[0])  # close ring
-            features.append({
-                "type": "Feature",
-                "geometry": {"type": "Polygon", "coordinates": [coords_um]},
-                "properties": {"classification": "tumor", "mpp": mpp},
-            })
+            features.append(
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Polygon", "coordinates": [coords_um]},
+                    "properties": {"classification": "tumor", "mpp": mpp},
+                }
+            )
 
         geojson = {"type": "FeatureCollection", "features": features}
         with out_path.open("w") as fh:
@@ -194,6 +201,8 @@ class GeoJSONMaskWriter(BaseMaskWriter):
 
         logger.info("GeoJSON: %d contour(s) exported → %s", len(features), out_path)
         return WriteResult(
-            path=out_path, shape=mask.shape[:2], format="geojson",
+            path=out_path,
+            shape=mask.shape[:2],
+            format="geojson",
             metadata={"num_contours": len(features)},
         )

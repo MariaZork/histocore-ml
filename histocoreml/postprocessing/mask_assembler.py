@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 
+import cv2
 import numpy as np
 from numpy.typing import NDArray
 
@@ -41,7 +42,9 @@ class MaskAssembler:
         self._metadata = metadata
         self._downsample_factor = downsample_factor
 
-        inf_level, _ = metadata.best_level_for_mpp(model_cfg.target_mpp)
+        # Must match the level generate_patch_coords tiled at, including its
+        # level-0 fallback for slides with no MPP metadata.
+        inf_level, _ = metadata.level_for_mpp(model_cfg.target_mpp)
         self._inf_ds = metadata.level_downsamples[inf_level]
 
         inf_w, inf_h = metadata.level_dimensions[inf_level]
@@ -65,8 +68,13 @@ class MaskAssembler:
         Args:
             masks: Binary uint8 array ``(N, H, W)``.
             coords: Corresponding :class:`PatchCoord` objects (same order).
+
+        Raises:
+            ValueError: If the counts disagree — silently zipping to the shorter
+                of the two would drop predictions from the assembled mask.
         """
-        for mask, coord in zip(masks, coords):
+        self._check_batch_length(len(masks), len(coords))
+        for mask, coord in zip(masks, coords, strict=True):
             self._write_patch(mask, coord)
 
     def add_proba_batch(self, probas: np.ndarray, coords: list[PatchCoord]) -> None:
@@ -75,11 +83,24 @@ class MaskAssembler:
         Args:
             probas: float32 array ``(N, H, W)`` with values in [0, 1].
             coords: Corresponding :class:`PatchCoord` objects.
+
+        Raises:
+            ValueError: If the counts disagree.
         """
+        self._check_batch_length(len(probas), len(coords))
         # Scale to uint32 range for integer accumulation
         scaled: NDArray[np.uint32] = (probas * 65535).astype(np.uint32)
         for idx, coord in enumerate(coords):
             self._write_patch(scaled[idx], coord)
+
+    @staticmethod
+    def _check_batch_length(n_predictions: int, n_coords: int) -> None:
+        """Reject a batch whose predictions and coordinates do not line up."""
+        if n_predictions != n_coords:
+            raise ValueError(
+                f"Batch mismatch: {n_predictions} predictions for {n_coords} "
+                "coordinates. Every prediction must have a matching coordinate."
+            )
 
     def finalise(self) -> np.ndarray:
         """Average all accumulated predictions and return a binary mask.
@@ -108,6 +129,8 @@ class MaskAssembler:
 
         cx = int(coord.x / self._inf_ds / self._downsample_factor)
         cy = int(coord.y / self._inf_ds / self._downsample_factor)
+
+        mask = self._to_canvas_scale(mask, coord)
         ph, pw = mask.shape[0], mask.shape[1]
 
         y0 = max(cy, 0)
@@ -123,7 +146,28 @@ class MaskAssembler:
         my1 = my0 + (y1 - y0)
         mx1 = mx0 + (x1 - x0)
 
-        self._canvas.accumulator[y0:y1, x0:x1] += mask[
-            my0:my1, mx0:mx1
-        ].astype(np.uint32)
+        self._canvas.accumulator[y0:y1, x0:x1] += mask[my0:my1, mx0:mx1].astype(np.uint32)
         self._canvas.counts[y0:y1, x0:x1] += 1
+
+    def _to_canvas_scale(self, mask: np.ndarray, coord: PatchCoord) -> np.ndarray:
+        """Resize a model output to the extent it occupies on the canvas.
+
+        The model predicts at ``target_mpp`` (``model_cfg.patch_size`` square),
+        but the canvas is at the inference level's resolution. Those differ
+        whenever ``rescale_factor != 1`` — i.e. whenever no pyramid level lands
+        exactly on ``target_mpp``. Writing the raw prediction then scatters
+        every patch at the wrong size, silently double-counting or leaving gaps
+        even with ``overlap=0``.
+
+        ``coord.patch_size`` is the patch's extent in *level* pixels, which is
+        the canvas scale once output downsampling is applied.
+        """
+        target = max(1, int(round(coord.patch_size / self._downsample_factor)))
+        if mask.shape[0] == target and mask.shape[1] == target:
+            return mask
+
+        # cv2.resize rejects uint32 (used by add_proba_batch), so round-trip
+        # through float32 for anything that is not already uint8.
+        source = mask if mask.dtype == np.uint8 else mask.astype(np.float32)
+        resized = cv2.resize(source, (target, target), interpolation=cv2.INTER_NEAREST)
+        return resized if mask.dtype == np.uint8 else resized.astype(mask.dtype)

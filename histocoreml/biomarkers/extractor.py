@@ -26,8 +26,8 @@ class BiomarkerReport:
 
     wsi_path: Path
     features: dict[str, Any] = field(default_factory=dict)
-    errors: list[str]        = field(default_factory=list)
-    elapsed_seconds: float   = 0.0
+    errors: list[str] = field(default_factory=list)
+    elapsed_seconds: float = 0.0
 
     @property
     def success(self) -> bool:
@@ -39,7 +39,7 @@ class BiomarkerReport:
         payload = {
             "wsi_path": str(self.wsi_path),
             "features": self.features,
-            "errors":   self.errors,
+            "errors": self.errors,
             "elapsed_seconds": self.elapsed_seconds,
         }
         with path.open("w") as fh:
@@ -101,8 +101,8 @@ class BiomarkerExtractor:
             try:
                 with get_reader(wsi_path) as reader:
                     patch = reader.get_thumbnail(max_size=(2048, 2048))
-                    meta  = reader.get_metadata()
-                    mpp   = meta.mpp or 1.0
+                    meta = reader.get_metadata()
+                    mpp = meta.mpp or 1.0
             except (OSError, ValueError, RuntimeError, ImportError) as exc:
                 errors.append(f"Slide read failed: {exc}")
                 return BiomarkerReport(wsi_path=wsi_path, errors=errors)
@@ -136,7 +136,7 @@ class BiomarkerExtractor:
     ) -> dict[str, Any]:
         if task == "cell_density":
             _, nuclei = detect_nuclei(patch, self._cfg.min_cell_area_px, self._cfg.max_cell_area_px)
-            area_mm2 = (patch.shape[0] * patch.shape[1] * mpp ** 2) / 1e6
+            area_mm2 = (patch.shape[0] * patch.shape[1] * mpp**2) / 1e6
             return {"cell_density_per_mm2": len(nuclei) / max(area_mm2, 1e-9)}
 
         if task == "nuclei_morphology":
@@ -166,10 +166,10 @@ class BiomarkerExtractor:
         if task == "tumor_stroma_ratio":
             if mask is None:
                 return {"tumor_stroma_ratio": float("nan")}
-            tumor_px  = int(mask.sum())
-            total_px  = mask.size
+            tumor_px = int(mask.sum())
+            total_px = mask.size
             return {
-                "tumor_fraction":  tumor_px / total_px,
+                "tumor_fraction": tumor_px / total_px,
                 "stroma_fraction": (total_px - tumor_px) / total_px,
                 "tumor_stroma_ratio": tumor_px / max(total_px - tumor_px, 1),
             }

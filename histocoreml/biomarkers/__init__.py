@@ -7,6 +7,7 @@ Biomarkers extracted
 * **Tumor-stroma ratio** — foreground class pixel fractions
 * **Spatial graph**      — Delaunay graph statistics (mean neighbour distance, etc.)
 * **Ki-67 index**        — fraction of positively-staining nuclei (DAB channel)
+* **Longevity metrics**  — Tissue health score, fibrosis, senescence, epigenetic age
 
 Usage::
 
@@ -18,16 +19,33 @@ Usage::
     extractor = BiomarkerExtractor(cfg)
     report = extractor.run(Path("slide.svs"), mask=binary_mask)
     report.save(Path("biomarkers/slide.json"))
+
+    # Longevity analysis
+    from histocoreml.biomarkers import LongevityAnalyzer
+    analyzer = LongevityAnalyzer()
+    metrics = analyzer.analyze(Path("slide.svs"))
 """
 
 from histocoreml.biomarkers.extractor import BiomarkerExtractor, BiomarkerReport
+from histocoreml.biomarkers.longevity import (
+    LongevityAnalyzer,
+    LongevityMetrics,
+    analyze_tissue_longevity,
+)
 from histocoreml.biomarkers.nuclei import detect_nuclei, measure_nuclei_morphology
 from histocoreml.biomarkers.spatial import build_spatial_graph, compute_graph_features
 from histocoreml.biomarkers.stain import compute_ki67_index, separate_he_channels
 
 __all__ = [
-    "BiomarkerExtractor", "BiomarkerReport",
-    "detect_nuclei", "measure_nuclei_morphology",
-    "build_spatial_graph", "compute_graph_features",
-    "separate_he_channels", "compute_ki67_index",
+    "BiomarkerExtractor",
+    "BiomarkerReport",
+    "LongevityAnalyzer",
+    "LongevityMetrics",
+    "analyze_tissue_longevity",
+    "detect_nuclei",
+    "measure_nuclei_morphology",
+    "build_spatial_graph",
+    "compute_graph_features",
+    "separate_he_channels",
+    "compute_ki67_index",
 ]
